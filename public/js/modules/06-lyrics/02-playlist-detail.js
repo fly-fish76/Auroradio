@@ -681,9 +681,10 @@ function renderUserPlaylistsList(opts) {
   var seq = ++playlistRenderSeq;
   var localPlaylistCount = typeof getLocalPlaylists === 'function' ? getLocalPlaylists().length : 0;
   if (!userPlaylists.length && !localPlaylistCount) {
-    $pl.innerHTML = playlistCatalogSyncState && playlistCatalogSyncState.loading
+    $pl.innerHTML = (playlistCatalogSyncState && playlistCatalogSyncState.loading
       ? miniQueueSkeleton() + playlistCatalogFooterHtml()
-      : '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">未找到歌单</div>';
+      : '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">未找到歌单</div>')
+      + (typeof localPlaylistFooterHtml === 'function' ? localPlaylistFooterHtml() : '');
     return;
   }
   var panel = playlistPanelScroller('playlists');
