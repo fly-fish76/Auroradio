@@ -638,7 +638,8 @@ async function refreshUserPlaylists(force) {
       if (podcastListLocal) podcastListLocal.innerHTML = '<div style="text-align:center;padding:14px 0;color:rgba(255,255,255,.28);font-size:11.5px">登录后显示我的播客</div>';
       return;
     }
-    document.getElementById('pl-list').innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">还没有歌单 · 在设置里可从落雪导入</div>';
+    document.getElementById('pl-list').innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">还没有歌单 · 在设置里可从落雪导入</div>'
+      + (typeof localPlaylistFooterHtml === 'function' ? localPlaylistFooterHtml() : '');
     var podcastListLoggedOut = document.getElementById('podcast-list');
     if (podcastListLoggedOut) podcastListLoggedOut.innerHTML = '<div style="text-align:center;padding:14px 0;color:rgba(255,255,255,.28);font-size:11.5px">登录后显示我的播客</div>';
     return;
