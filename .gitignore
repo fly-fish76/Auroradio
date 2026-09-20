@@ -74,3 +74,4 @@ screenshots/
 
 # 本地 AI 工具工作区
 .zcode/
+.lx-export/.gitignore
