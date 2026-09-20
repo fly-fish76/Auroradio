@@ -179,31 +179,28 @@ function toggleLxSourcePrefer() {
   showToast(next ? '全部歌曲优先用落雪音源' : '已恢复官方接口优先');
 }
 
-// ---------- 启动时自动静默导入落雪数据 (仅首次) ----------
-var LX_DATA_AUTOIMPORT_FLAG = 'mineradio-lx-data-imported-v1';
+// ---------- 一次性清理: 移除历史上静默导入的「落雪·」歌单 ----------
+// 启动时静默导入落雪数据的逻辑已移除 (落雪数据导入改为设置面板内手动触发)。
+// 该迁移负责清掉老用户配置里遗留的「落雪·」前缀歌单, 只执行一次。
+var LX_DATA_CLEANUP_FLAG = 'mineradio-luoxue-playlists-cleared-v1';
 
-function autoImportLxDataSilently() {
+function cleanupImportedLuoxuePlaylists() {
   try {
-    if (localStorage.getItem(LX_DATA_AUTOIMPORT_FLAG) === '1') return;
+    if (localStorage.getItem(LX_DATA_CLEANUP_FLAG) === '1') return;
+    localStorage.setItem(LX_DATA_CLEANUP_FLAG, '1');
   } catch (_) { return; }
-  apiJson('/api/lxsource/import-lx-data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
-  }).then(function (result) {
-    if (!result || !result.success) return;
-    try { localStorage.setItem(LX_DATA_AUTOIMPORT_FLAG, '1'); } catch (_) { }
-    var saveInfo = (typeof importLxDataLists === 'function' && result.lists && result.lists.length)
-      ? importLxDataLists(result.lists)
-      : null;
-    if (result.scripts && result.scripts.length) {
-      showToast('已从落雪导入 ' + result.scripts.length + ' 个音源脚本' + (saveInfo ? ('、歌单 ' + saveInfo.addedSongs + ' 首') : ''));
-    } else if (saveInfo && saveInfo.addedSongs) {
-      showToast('已从落雪导入歌单 ' + saveInfo.addedSongs + ' 首歌');
+  if (typeof readLocalPlaylistStore !== 'function' || typeof saveLocalPlaylistStore !== 'function') return;
+  try {
+    var store = readLocalPlaylistStore();
+    if (!store || !Array.isArray(store.lists)) return;
+    var kept = store.lists.filter(function (l) { return !l || String(l.name || '').indexOf('落雪·') !== 0; });
+    var removed = store.lists.length - kept.length;
+    if (removed > 0) {
+      store.lists = kept;
+      saveLocalPlaylistStore(store);
     }
-    refreshLxSourcePanel();
-  }).catch(function () { });
+  } catch (_) { }
 }
 
 setTimeout(refreshLxSourcePanel, 450);
-setTimeout(autoImportLxDataSilently, 1600);
+setTimeout(cleanupImportedLuoxuePlaylists, 1600);
