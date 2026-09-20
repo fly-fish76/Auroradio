@@ -1,7 +1,7 @@
 {
   "name": "auroradio",
   "productName": "Auroradio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Auroradio — Windows 沉浸式音乐播放器（基于 Mineradio 修改），融合桌面模式、歌词舞台、粒子视觉和 3D 歌单架。",
   "author": "Auroradio",
   "license": "GPL-3.0-only",
