@@ -19353,3 +19353,10 @@ body.progress-style-dots #progress-flow-canvas {
   position: relative;
   z-index: 60
 }
+
+/* ============================================================
+   1.3.0 · 歌单面板标签居中
+   ============================================================ */
+.panel-tabs {
+  justify-content: center
+}
