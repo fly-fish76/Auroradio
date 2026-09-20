@@ -1,6 +1,6 @@
 'use strict';
 
-(function loadMineradioIndexModules() {
+(function loadAuroradioIndexModules() {
   const moduleCacheBust = String(Date.now());
   const modulePaths = [
     'js/modules/00-state/00-core-stores.js',
@@ -22,6 +22,7 @@
     'js/modules/01-scene/04-bottom-controls-cursor.js',
     'js/modules/02-visual/00-pointer-cover-particles.js',
     'js/modules/02-visual/01-float-skull-backcover.js',
+    'js/modules/02-visual/01c-phoenix-preset.js',
     'js/modules/02-visual/02-lyrics-state-layout.js',
     'js/modules/02-visual/03-lyrics-star-river.js',
     'js/modules/02-visual/04-visual-settings-persistence.js',
@@ -72,6 +73,8 @@
     'js/modules/05-playback/16-cuefield-automix-core.js',
     'js/modules/05-playback/17-cuefield-timeline-executor.js',
     'js/modules/05-playback/18-cuefield-automix-integration.js',
+    'js/modules/05-playback/19-lx-source.js',
+    'js/modules/05-playback/20-frequent-playlists.js',
     'js/modules/06-lyrics/00-lyrics-fetch-parse.js',
     'js/modules/06-lyrics/01-playlist-panel-shell.js',
     'js/modules/06-lyrics/02-playlist-detail.js',
@@ -79,6 +82,8 @@
     'js/modules/06-lyrics/04-progress-seek.js',
     'js/modules/06-lyrics/05-upload-dragdrop.js',
     'js/modules/06-lyrics/06-lyric-timing-offset.js',
+    'js/modules/06-lyrics/07-local-playlists.js',
+    'js/modules/06-lyrics/08-online-songlists.js',
     'js/modules/07-fx/00-preset-archive-data.js',
     'js/modules/07-fx/01-lyric-color-controls.js',
     'js/modules/07-fx/02-accent-background-controls.js',
@@ -90,7 +95,7 @@
     'js/modules/07-fx/07-bindings-shelf-immersive.js',
     'js/modules/07-fx/08-cache-storage-settings.js',
     'js/modules/07-fx/09-console-workspace.js',
-    'js/modules/08-account/00-update-preview.js',
+    'js/modules/07-fx/10-lx-source-settings.js',
     'js/modules/08-account/00-login-easter-egg.js',
     'js/modules/08-account/01-login-modal-utils.js',
     'js/modules/08-account/02-login-status.js',
@@ -113,7 +118,7 @@
     request.send(null);
 
     if ((request.status < 200 || request.status >= 300) && request.status !== 0) {
-      throw new Error('Failed to load Mineradio module: ' + path + ' (' + request.status + ')');
+      throw new Error('Failed to load Auroradio module: ' + path + ' (' + request.status + ')');
     }
 
     return request.responseText;
@@ -122,4 +127,12 @@
   const script = document.createElement('script');
   script.text = modulePaths.map(readModule).join('') + '\n//# sourceURL=mineradio-index-modules.js\n';
   document.currentScript.parentNode.insertBefore(script, document.currentScript.nextSibling);
+
+  // 全部模块（含主循环）已同步执行完毕：通知主进程可以显示窗口了。
+  // 入场动画由 rAF 驱动，窗口显示后立即开始播放。
+  try {
+    if (window.desktopWindow && typeof window.desktopWindow.notifyEntryVisualReady === 'function') {
+      window.desktopWindow.notifyEntryVisualReady();
+    }
+  } catch (_) {}
 })();

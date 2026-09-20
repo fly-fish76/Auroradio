@@ -20,7 +20,7 @@ function desktopWallpaperKeepsPlayerConsoleVisible() {
   if (!body
     || !body.classList.contains('desktop-wallpaper-mode')
     || !body.classList.contains('desktop-wallpaper-interactive')) return false;
-  // Home and the 3D shelf are complete Mineradio surfaces of their own. In the
+  // Home and the 3D shelf are complete Auroradio surfaces of their own. In the
   // ordinary desktop stage, however, allowing the generic inactivity timer to
   // hide the only player console makes the renderer look as if it fell behind
   // the wallpaper/Explorer plane.

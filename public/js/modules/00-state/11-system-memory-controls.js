@@ -124,7 +124,7 @@ function updateMemoryControls() {
     el.classList.remove('dev-locked');
     el.setAttribute('aria-disabled', 'false');
     el.title = systemAvailable
-      ? 'Mem Reduct will run only after Mineradio is hidden/minimized and threshold/interval allow it.'
+      ? 'Mem Reduct will run only after Auroradio is hidden/minimized and threshold/interval allow it.'
       : 'System-level Mem Reduct is not confirmed by the desktop process yet; app trim remains active.';
   });
   document.querySelectorAll('#memory-mask-seg [data-memory-mask]').forEach(function (btn) {
@@ -138,13 +138,13 @@ function updateMemoryControls() {
       btn.disabled = !systemAvailable;
       btn.classList.toggle('dev-locked', !systemAvailable);
       btn.title = systemAvailable
-        ? 'Manual system memory release. Mineradio skips it while the main window is visible to avoid CPU spikes.'
+        ? 'Manual system memory release. Auroradio skips it while the main window is visible to avoid CPU spikes.'
         : 'System-level purge is unavailable; background app trim remains active.';
     } else if (index > 1) {
       btn.disabled = !systemAvailable;
       btn.classList.toggle('dev-locked', !systemAvailable);
       btn.title = systemAvailable
-        ? 'Manual elevated release. Minimize or hide Mineradio first; the foreground window is skipped to avoid CPU spikes.'
+        ? 'Manual elevated release. Minimize or hide Auroradio first; the foreground window is skipped to avoid CPU spikes.'
         : 'System-level purge is unavailable; background app trim remains active.';
     }
   });

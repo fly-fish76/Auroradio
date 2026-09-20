@@ -65,6 +65,12 @@ function makeShelfManager() {
   }
 
   function currentItems() {
+    var localItems = (typeof getLocalPlaylists === 'function' ? getLocalPlaylists() : []).map(function (pl) {
+      return {
+        type: 'playlist', title: pl.name, sub: '本地 · ' + (pl.trackCount || 0) + ' 首',
+        cover: pl.cover || '', tag: '本地歌单', playlistId: 'local:' + pl.id, provider: 'local'
+      };
+    });
     if (hasAnyPlatformLogin() && (userPlaylists.length || myPodcastCollections.length)) {
       var source = activePlaylists();
       var items = source.map(function (pl) {
@@ -81,8 +87,10 @@ function makeShelfManager() {
           items.push({ type: 'podcastCollection', title: pc.title, sub: (pc.count || 0) + ' items', cover: pc.cover || '', tag: '我的播客', podcastKey: pc.key, itemType: pc.itemType });
         });
       }
+      if (localItems.length) items = localItems.concat(items);
       if (items.length) return items;
     }
+    if (localItems.length) return localItems;
     if (playQueue.length) {
       return playQueue.map(function (song, idx) {
         return {

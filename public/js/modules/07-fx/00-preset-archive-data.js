@@ -9,6 +9,7 @@ var presetMeta = [
   { name: '安魂', desc: '骷髅·YUI7W', descHtml: '骷髅·<span class="pc-yui7w">YUI7W</span>' },
   { name: '音域回响', nameHtml: '音域回响 <span class="pc-name-en">Sonic-Topography</span>', desc: '作者 Ajin', descHtml: '作者 <span class="pc-author-ajin">Ajin</span>' },
   { name: '音域回响', nameHtml: '音域回响 <span class="pc-name-en">Wallpaper Engine</span>', desc: '作者 CmzYa' },
+  { name: '凤凰', desc: '神鸟·蒙皮粒子', descHtml: '神鸟·<span class="pc-phoenix">凤凰</span>' },
 ];
 var presetIcons = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 14c3-2 5-2 8 0s5 2 8 0M3 10c3-2 5-2 8 0s5 2 8 0M3 18c3-2 5-2 8 0s5 2 8 0"/></svg>',
@@ -20,8 +21,9 @@ var presetIcons = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2h4v6.2h4.2v3.8H14v7.6h-4v-7.6H5.8V9.4H10z"/></svg>',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M3 12c2-2.5 4-2.5 6 0s4 2.5 6 0 4-2.5 6 0"/><path d="M3 6c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><circle cx="18" cy="5" r="1.2" fill="currentColor"/></svg>',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18"/><path d="M5 15c1.4-4 2.8-4 4.2 0s2.8 4 4.2 0 2.8-4 4.6 0"/><path d="M4 10c2-2 4-2 6 0s4 2 6 0 3-2 4 0"/><path d="M7 6h10"/><circle cx="18.2" cy="5.8" r="1.35" fill="currentColor"/></svg>',
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20c-1.8-1.6-3.2-3.8-3.6-6.2M12 20c1.8-1.6 3.2-3.8 3.6-6.2"/><path d="M8.4 13.8C5.6 13 3.6 10.8 3 8c2.9.2 5.4 1.4 7.2 3.4"/><path d="M15.6 13.8c2.8-.8 4.8-3 5.4-5.8-2.9.2-5.4 1.4-7.2 3.4"/><path d="M12 13.5c-1.2-1.7-1.8-3.9-1.4-6.1.4-2 1.4-3.6 1.4-3.6s1 1.6 1.4 3.6c.4 2.2-.2 4.4-1.4 6.1z"/></svg>',
 ];
-var presetDisplayOrder = [0, 6, 7, 8, 5, 4, 2, 1, 3];
+var presetDisplayOrder = [0, 6, 9, 7, 8, 5, 4, 2, 1, 3];
 var lyricColorPresets = [
   { name: '雾蓝', color: '#a9b8c8' },
   { name: '银蓝', color: '#9db8cf' },
@@ -75,6 +77,8 @@ var USER_FX_SHARE_KEYS = [
   'lyricTiltX',
   'lyricTiltY',
   'lyricCameraLock',
+  'lyricAvoidPhoenix',
+  'lyricKeepLevel',
   'lyricColorMode',
   'lyricColor',
   'lyricHighlightMode',
@@ -104,6 +108,9 @@ var USER_FX_SHARE_KEYS = [
   'lyricWeight',
   'visualTintMode',
   'visualTintColor',
+  'phoenixColorMode',
+  'phoenixSolidColor',
+  'phoenixRhythmMode',
   'uiAccentColor',
   'homeAccentColor',
   'homeIconColor',
@@ -245,6 +252,8 @@ var USER_FX_SHARE_KEYS = [
   'cameraOrbitTheta',
   'cameraOrbitPhi',
   'cameraOrbitRadius',
+  'zoomFixed',
+  'zoomRadius',
   'cameraFreePositionX',
   'cameraFreePositionY',
   'cameraFreePositionZ',
@@ -315,6 +324,8 @@ function normalizeFxArchiveSnapshot(raw) {
     visualPresetSchema: VISUAL_PRESET_SCHEMA,
     preset: savedPreset,
     intensity: archiveNumber(raw, 'intensity', fxDefaults.intensity, 0.2, 1.6),
+    particleCount: archiveNumber(raw, 'particleCount', fxDefaults.particleCount, 0.1, 1),
+    particleDensity: archiveNumber(raw, 'particleDensity', fxDefaults.particleDensity, 1, 4),
     cinemaShake: archiveNumber(raw, 'cinemaShake', fxDefaults.cinemaShake, 0, 1.8),
     depth: archiveNumber(raw, 'depth', fxDefaults.depth, 0.2, 1.8),
     coverResolution: normalizeCoverResolution(raw.coverResolution),
@@ -322,6 +333,7 @@ function normalizeFxArchiveSnapshot(raw) {
     speed: archiveNumber(raw, 'speed', fxDefaults.speed, 0.2, 2.5),
     twist: archiveNumber(raw, 'twist', fxDefaults.twist, 0, 0.6),
     color: archiveNumber(raw, 'color', fxDefaults.color, 0.5, 2.0),
+    brightness: archiveNumber(raw, 'brightness', fxDefaults.brightness, 0, 10),
     scatter: archiveNumber(raw, 'scatter', fxDefaults.scatter, 0, 0.5),
     bgFade: archiveNumber(raw, 'bgFade', fxDefaults.bgFade, 0, 1.2),
     bloomStrength: archiveNumber(raw, 'bloomStrength', fxDefaults.bloomStrength, 0, 1.6),
@@ -364,6 +376,9 @@ function normalizeFxArchiveSnapshot(raw) {
     lyricTextureClarity: normalizeLyricTextureClarity(raw.lyricTextureClarity),
     visualTintMode: raw.visualTintMode === 'custom' ? 'custom' : 'auto',
     visualTintColor: normalizeHexColor(raw.visualTintColor || fxDefaults.visualTintColor),
+    phoenixColorMode: /^(solid|cover)$/.test(String(raw.phoenixColorMode)) ? raw.phoenixColorMode : 'default',
+    phoenixSolidColor: normalizeHexColor(raw.phoenixSolidColor || fxDefaults.phoenixSolidColor, fxDefaults.phoenixSolidColor),
+    phoenixRhythmMode: /^(breath|sweep)$/.test(String(raw.phoenixRhythmMode)) ? raw.phoenixRhythmMode : 'beat',
     uiAccentColor: normalizeHexColor(raw.uiAccentColor || fxDefaults.uiAccentColor, fxDefaults.uiAccentColor),
     homeAccentColor: normalizeHexColor(raw.homeAccentColor || fxDefaults.homeAccentColor, fxDefaults.homeAccentColor),
     homeIconColor: normalizeHexColor(raw.homeIconColor || fxDefaults.homeIconColor, fxDefaults.homeIconColor),
@@ -393,6 +408,24 @@ function normalizeFxArchiveSnapshot(raw) {
     lyricGlowParticles: !!raw.lyricGlowParticles,
     lyricVerticalFloat: raw.lyricVerticalFloat !== false,
     backgroundStarRiver: raw.backgroundStarRiver !== false,
+    perPresetSplit: raw.perPresetSplit === true,
+    presetOverlay: -1, // 叠加功能已停用 (FX_OVERLAY_DISABLED): 存档/分享码恢复时不复活叠加
+    // 凤凰飞行轨迹 (旧单选 phoenixFlightMode: hover→none circle→盘旋+false dive→none+true patrol→巡游)
+    phoenixFlightPath: archiveMode(raw, 'phoenixFlightPath', /^(none|circle|patrol)$/,
+      raw.phoenixFlightMode === 'circle' ? 'circle' : raw.phoenixFlightMode === 'patrol' ? 'patrol' : 'none'),
+    phoenixFlightDive: raw.phoenixFlightDive === true || (raw.phoenixFlightPath == null && raw.phoenixFlightMode === 'dive'),
+    phoenixFlightShowPath: raw.phoenixFlightShowPath === true,
+    phoenixFlightSpeed: archiveNumber(raw, 'phoenixFlightSpeed', fxDefaults.phoenixFlightSpeed, 0.3, 2.5),
+    phoenixFlightAmp: archiveNumber(raw, 'phoenixFlightAmp', fxDefaults.phoenixFlightAmp, 0.3, 1.8),
+    phoenixFlightSize: archiveNumber(raw, 'phoenixFlightSize', fxDefaults.phoenixFlightSize, 1, 5),
+    phoenixFlightTilt: archiveNumber(raw, 'phoenixFlightTilt', fxDefaults.phoenixFlightTilt, 0, 90),
+    phoenixFlightSpin: archiveNumber(raw, 'phoenixFlightSpin', fxDefaults.phoenixFlightSpin, 0, 90),
+    phoenixPosX: archiveNumber(raw, 'phoenixPosX', fxDefaults.phoenixPosX, -8, 8),
+    phoenixPosY: archiveNumber(raw, 'phoenixPosY', fxDefaults.phoenixPosY, -2.5, 2.5),
+    lyricAvoidPhoenix: raw.lyricAvoidPhoenix !== false,
+    lyricKeepLevel: raw.lyricKeepLevel !== false,
+    zoomFixed: raw.zoomFixed === true,
+    zoomRadius: archiveNumber(raw, 'zoomRadius', fxDefaults.zoomRadius, 0.1, 120),
     lyricPauseHold: raw.lyricPauseHold !== false,
     desktopLyrics: !!raw.desktopLyrics,
     desktopLyricsSize: archiveNumber(raw, 'desktopLyricsSize', fxDefaults.desktopLyricsSize, 0.72, 1.55),
@@ -402,6 +435,13 @@ function normalizeFxArchiveSnapshot(raw) {
     desktopLyricsCinema: raw.desktopLyricsCinema !== false,
     desktopLyricsHighlight: raw.desktopLyricsHighlight === true,
     desktopLyricsFps: normalizeDesktopLyricsFps(Object.prototype.hasOwnProperty.call(raw, 'desktopLyricsFps') ? raw.desktopLyricsFps : fxDefaults.desktopLyricsFps),
+    playerShellStyle: normalizePlayerShellStyle(Object.prototype.hasOwnProperty.call(raw, 'playerShellStyle') ? raw.playerShellStyle : fxDefaults.playerShellStyle),
+    progressStyle: normalizeProgressStyle(Object.prototype.hasOwnProperty.call(raw, 'progressStyle') ? raw.progressStyle : fxDefaults.progressStyle),
+    progressParticleAmount: normalizeProgressParticleAmount(Object.prototype.hasOwnProperty.call(raw, 'progressParticleAmount') ? raw.progressParticleAmount : fxDefaults.progressParticleAmount),
+    progressParticleBrightness: normalizeProgressParticleBrightness(Object.prototype.hasOwnProperty.call(raw, 'progressParticleBrightness') ? raw.progressParticleBrightness : fxDefaults.progressParticleBrightness),
+    progressParticleSize: normalizeProgressParticleSize(Object.prototype.hasOwnProperty.call(raw, 'progressParticleSize') ? raw.progressParticleSize : fxDefaults.progressParticleSize),
+    progressThickness: normalizeProgressThickness(Object.prototype.hasOwnProperty.call(raw, 'progressThickness') ? raw.progressThickness : fxDefaults.progressThickness),
+    progressSparkDirection: normalizeProgressSparkDirection(Object.prototype.hasOwnProperty.call(raw, 'progressSparkDirection') ? raw.progressSparkDirection : fxDefaults.progressSparkDirection),
     performanceBackground: normalizePerformanceBackgroundMode(raw.performanceBackground, raw.liveBackgroundKeep === true),
     performanceQuality: normalizePerformanceQuality(raw.performanceQuality),
     foregroundFpsMode: normalizeForegroundFpsMode(raw.foregroundFpsMode === 'adaptive' ? 'vsync' : raw.foregroundFpsMode),
@@ -662,6 +702,8 @@ function applyCameraArchiveState(data) {
     orbit.baselineTheta = orbit.userTheta;
     orbit.baselinePhi = orbit.userPhi;
     orbit.baselineRadius = orbit.userRadius;
+    // 存档的视角半径同时记为当前预设的缩放记忆
+    if (typeof fxZoomRememberCurrent === 'function') fxZoomRememberCurrent();
     orbit.theta = orbit.userTheta;
     orbit.phi = orbit.userPhi;
     orbit.radius = orbit.userRadius;
@@ -1263,7 +1305,7 @@ function userFxArchiveExportPayload(slot) {
   };
 }
 function safeArchiveFileName(name) {
-  return String(name || 'Mineradio 用户存档').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 48) + '.json';
+  return String(name || 'Auroradio 用户存档').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 48) + '.json';
 }
 function exportUserFxArchive(index) {
   var slot = userFxArchiveAt(index);

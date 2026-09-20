@@ -10,8 +10,8 @@ const QISHUI_API_BASE = (process.env.QISHUI_API_BASE || 'https://open.douyin.com
 const QISHUI_RELATED_MEDIA_PATH = '/api/luna/v1/platform/feed/related-media/';
 const QISHUI_FEED_SONG_TAB_PATH = '/api/luna/v1/platform/feed/song-tab/';
 const QISHUI_SCOPE = 'luna.openapi.platform.play_core';
-const DEFAULT_QISHUI_TOKEN_FILE = path.join(__dirname, '.qishui-token');
-const QISHUI_UA = 'Mineradio/2.1.0 (Qishui official OpenAPI bridge)';
+const DEFAULT_QISHUI_TOKEN_FILE = path.join(__dirname, '..', '.qishui-token');
+const QISHUI_UA = 'Auroradio/2.1.0 (Qishui official OpenAPI bridge)';
 const QISHUI_OAUTH_AUTH_URL = (process.env.QISHUI_OAUTH_AUTH_URL || 'https://open.douyin.com/platform/oauth/connect').replace(/\/+$/, '');
 const QISHUI_OAUTH_TOKEN_URL = process.env.QISHUI_OAUTH_TOKEN_URL || 'https://open.douyin.com/oauth/access_token/';
 const QISHUI_PUBLIC_ENABLED = process.env.QISHUI_PUBLIC_ENABLED !== '0';
@@ -27,7 +27,7 @@ const QISHUI_WEB_API_BASES = (process.env.QISHUI_WEB_API_BASES || 'https://api5-
 const QISHUI_WEB_PC_API_BASE = (process.env.QISHUI_WEB_PC_API_BASE || 'https://api.qishui.com').replace(/\/+$/, '');
 const QISHUI_PUBLIC_HEADERS = {
   'Accept': 'application/json,text/plain,*/*',
-  'User-Agent': 'Mineradio/2.1.0 (Qishui public catalog bridge)',
+  'User-Agent': 'Auroradio/2.1.0 (Qishui public catalog bridge)',
 };
 const QISHUI_WEB_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) SodaMusic/3.1.0 Chrome/136.0.7103.59 Electron/36.4.0-rs.22.release.main.1 TTElectron/36.4.0-rs.22.release.main.1 Safari/537.36';
 const QISHUI_PC_APP_UA = 'LunaPC/3.3.0(359450208)';
@@ -68,8 +68,8 @@ function qishuiOAuthConfigFileCandidates() {
   };
   add(firstEnv(['QISHUI_OAUTH_CONFIG_FILE', 'DOUYIN_OAUTH_CONFIG_FILE']));
   try { add(path.join(path.dirname(qishuiTokenFile()), '.qishui-oauth.json')); } catch (_) {}
-  add(path.join(__dirname, '.qishui-oauth.json'));
-  add(path.join(__dirname, 'qishui-oauth.json'));
+  add(path.join(__dirname, '..', '.qishui-oauth.json'));
+  add(path.join(__dirname, '..', 'qishui-oauth.json'));
   return candidates;
 }
 
@@ -591,8 +591,8 @@ function getQishuiStatus(cookieText) {
       : tokenConfigured
       ? '已有旧版开放平台目录授权；账号功能仍需完成官方扫码登录。'
       : (QISHUI_PUBLIC_ENABLED
-        ? '请使用抖音 App 扫描 Mineradio 中的汽水官方二维码；未登录时仅保留公开搜索匹配。'
-        : '请使用抖音 App 扫描 Mineradio 中的汽水官方二维码完成登录。'),
+        ? '请使用抖音 App 扫描 Auroradio 中的汽水官方二维码；未登录时仅保留公开搜索匹配。'
+        : '请使用抖音 App 扫描 Auroradio 中的汽水官方二维码完成登录。'),
   };
 }
 
@@ -3449,6 +3449,150 @@ async function handleQishuiSongUrl(opts, cookieText) {
   });
 }
 
+// ---------- 分享链接导入 (免登录解析汽水歌单分享页 SSR 数据) ----------
+const QISHUI_SHARE_PAGE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36';
+
+function fetchTextFollowRedirects(targetUrl, opts, depth) {
+  depth = depth || 0;
+  opts = opts || {};
+  return new Promise((resolve, reject) => {
+    if (depth > 5) return reject(new Error('QISHUI_SHARE_REDIRECT_LOOP'));
+    let parsed;
+    try { parsed = new URL(targetUrl); } catch (e) { return reject(new Error('QISHUI_SHARE_BAD_URL')); }
+    const mod = parsed.protocol === 'http:' ? http : https;
+    const req = mod.get(parsed, {
+      headers: {
+        'User-Agent': opts.userAgent || QISHUI_SHARE_PAGE_UA,
+        'Accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Referer': opts.referer || 'https://music.douyin.com/',
+      },
+      timeout: opts.timeoutMs || 12000,
+    }, (res) => {
+      const status = res.statusCode || 0;
+      if (status >= 300 && status < 400 && res.headers.location) {
+        res.resume();
+        let next;
+        try { next = new URL(res.headers.location, parsed).toString(); } catch (e) { return reject(new Error('QISHUI_SHARE_BAD_REDIRECT')); }
+        return resolve(fetchTextFollowRedirects(next, opts, depth + 1));
+      }
+      const chunks = [];
+      let bytes = 0;
+      res.on('data', (chunk) => { chunks.push(chunk); bytes += chunk.length; if (bytes > 12 * 1024 * 1024) req.destroy(); });
+      res.on('end', () => resolve({ url: parsed.toString(), status, body: Buffer.concat(chunks).toString('utf8') }));
+      res.on('error', reject);
+    });
+    req.on('timeout', () => req.destroy(new Error('QISHUI_SHARE_TIMEOUT')));
+    req.on('error', reject);
+  });
+}
+
+// 从 HTML 中截取 marker 后的第一个完整 JSON 值 (字符串感知的花括号配平)
+function qishuiExtractShareJson(html, marker) {
+  const at = html.indexOf(marker);
+  if (at < 0) return null;
+  const braceStart = html.indexOf('{', at + marker.length);
+  if (braceStart < 0) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let p = braceStart; p < html.length; p++) {
+    const c = html[p];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(html.slice(braceStart, p + 1)); } catch (e) { return null; }
+      }
+    }
+  }
+  return null;
+}
+
+function qishuiPlaylistIdFromShareText(input) {
+  const text = String(input || '');
+  const m = text.match(/playlist_id=([0-9]+)/i);
+  if (m) return m[1];
+  const bare = text.trim();
+  return /^[0-9]{15,25}$/.test(bare) ? bare : '';
+}
+
+// 输入可以是完整分享文案 / 短链 / 带 playlist_id 的链接 / 纯数字 id
+async function resolveQishuiSharePlaylistId(input) {
+  const direct = qishuiPlaylistIdFromShareText(input);
+  if (direct) return direct;
+  const urlMatch = String(input || '').match(/https?:\/\/[^\s"'<>「」【】]+/i);
+  if (!urlMatch) return '';
+  const fetched = await fetchTextFollowRedirects(urlMatch[0], { timeoutMs: 12000 });
+  const fromUrl = qishuiPlaylistIdFromShareText(fetched.url);
+  if (fromUrl) return fromUrl;
+  const data = qishuiExtractShareJson(fetched.body, '_ROUTER_DATA');
+  const page = data && data.loaderData && (data.loaderData.playlist_page || data.loaderData.playlist);
+  const info = page && (page.playlistInfo || page.playlist_info);
+  const id = info && String(info.id || '');
+  return /^[0-9]{15,25}$/.test(id) ? id : '';
+}
+
+async function handleQishuiPlaylistFromShare(playlistId, cookieText) {
+  playlistId = normalizeText(String(playlistId || '').replace(/^qishui:/i, ''));
+  if (!/^[0-9]{5,30}$/.test(playlistId)) throw new Error('QISHUI_SHARE_ID_INVALID');
+  // 1) 已登录汽水 → 分页 API 拉全量
+  if (qishuiCookieHasLogin(cookieText)) {
+    try {
+      const all = [];
+      let total = 0, meta = null;
+      for (let offset = 0; offset < 2000; offset += 50) {
+        const page = await handleQishuiPlaylistTracks(playlistId, { limit: 50, offset }, cookieText);
+        if (!meta && page && page.playlist) meta = page.playlist;
+        const batch = (page && page.tracks) || [];
+        all.push(...batch);
+        total = Number(page && page.total) || total;
+        if (!batch.length || batch.length < 50 || (total && all.length >= total)) break;
+      }
+      if (all.length) {
+        return {
+          success: true, via: 'api', partial: false,
+          playlist: {
+            id: playlistId,
+            title: (meta && (meta.name || meta.title)) || '汽水歌单',
+            cover: (meta && meta.cover) || '',
+            total: total || all.length,
+          },
+          tracks: all,
+        };
+      }
+    } catch (e) { /* 登录态失效等 → 回退分享页解析 */ }
+  }
+  // 2) 免登录: 解析分享页内嵌的 _ROUTER_DATA SSR 数据
+  const fetched = await fetchTextFollowRedirects('https://music.douyin.com/qishui/share/playlist?playlist_id=' + playlistId, { timeoutMs: 15000 });
+  const data = qishuiExtractShareJson(fetched.body, '_ROUTER_DATA');
+  const page = data && data.loaderData && (data.loaderData.playlist_page || data.loaderData.playlist);
+  if (!page) throw new Error('QISHUI_SHARE_PARSE_FAILED');
+  const info = page.playlistInfo || page.playlist_info || {};
+  const tracks = mapQishuiMediaList(page.medias, 'share-playlist', { directPlayable: true });
+  if (!tracks.length) throw new Error('QISHUI_SHARE_EMPTY');
+  const total = qishuiPlaylistTrackCountFromItem(info) || tracks.length;
+  const partial = total > tracks.length;
+  return {
+    success: true, via: 'share', partial,
+    playlist: {
+      id: String(info.id || playlistId),
+      title: qishuiPlaylistNameFromItem(info) || '汽水歌单',
+      cover: qishuiPlaylistCoverFromItem(info),
+      total,
+    },
+    tracks,
+    message: partial
+      ? '分享页仅内嵌前 ' + tracks.length + ' 首（共 ' + total + ' 首），登录汽水音乐后重新导入同一链接可补全全部曲目'
+      : '',
+  };
+}
+
 module.exports = {
   getQishuiStatus,
   handleQishuiStatus,
@@ -3463,6 +3607,9 @@ module.exports = {
   handleQishuiFeed,
   handleQishuiUserPlaylists,
   handleQishuiPlaylistTracks,
+  handleQishuiPlaylistFromShare,
+  resolveQishuiSharePlaylistId,
+  fetchTextFollowRedirects,
   handleQishuiCheckTracksLiked,
   handleQishuiSetTrackLiked,
   handleQishuiSetPlaylistCollected,

@@ -168,6 +168,7 @@ var mainFrameGates = {
   lyricsParticles: createFrameGate('main.lyricsParticles', 45),
   stageLyrics: createFrameGate('main.stageLyrics', 45),
   skullParticles: createFrameGate('main.skullParticles', 45),
+  phoenixParticles: createFrameGate('main.phoenixParticles', 45),
   homeAudio: createFrameGate('main.homeAudio', 15),
   desktopOverlay: createFrameGate('main.desktopOverlay', 12)
 };
@@ -275,10 +276,17 @@ function targetMainStageLyricsFps(now) {
 }
 function targetMainSkullParticleFps(now) {
   if (isDeepBackgroundMode()) return 1;
-  if (!fx || fx.preset !== SKULL_PRESET_INDEX) return 10;
+  if (!fx || !fxLayerActiveFor(SKULL_PRESET_INDEX)) return 10;
   if (visibleMotionFollowVsync(now)) return 0;
-  if (mainLoopInteractionActive(now)) return capMainLoopFpsForBudget(120, 72);
-  return (playing && audio && !audio.paused) ? capMainLoopFpsForBudget(60, 45) : 24;
+  // 全程跟随 vsync 不限帧 (用户要求): 单层 draw call 开销低, 45/24fps 门控在慢速运动下可见节拍抖动
+  return 0;
+}
+function targetMainPhoenixParticleFps(now) {
+  if (isDeepBackgroundMode()) return 1;
+  if (!fx || !fxLayerActiveFor(PHOENIX_PRESET_INDEX)) return 10;
+  if (visibleMotionFollowVsync(now)) return 0;
+  // 全程跟随 vsync 不限帧 (用户要求): 单层 draw call 开销低, 45/24fps 门控在慢速飞行下可见节拍抖动
+  return 0;
 }
 function targetMainHomeAudioFps(now) {
   if (isDeepBackgroundMode()) return 1;
@@ -311,9 +319,9 @@ function animate() {
   sampleRenderPerf(now, dt);
   uniforms.uTime.value += dt;
   if (isMainSceneCoveredBySplash()) {
-    var splashWorkshopActive = window.MineradioSonicWorkshop && MineradioSonicWorkshop.isActive(fx);
-    if (window.MineradioSonicWorkshop) {
-      MineradioSonicWorkshop.update(dt, {
+    var splashWorkshopActive = window.AuroradioSonicWorkshop && AuroradioSonicWorkshop.isActive(fx);
+    if (window.AuroradioSonicWorkshop) {
+      AuroradioSonicWorkshop.update(dt, {
         scene: scene,
         fx: fx,
         time: uniforms.uTime.value,
@@ -572,9 +580,17 @@ function animate() {
   uniforms.uEnergy.value = audioEnergy;
   uniforms.uMouseXY.value.set(mouseWorld.x, mouseWorld.y);
   uniforms.uMouseActive.value = mouseActive ? 1 : 0;
-  var sonicPresetActiveEarly = window.MineradioSonicTopography && MineradioSonicTopography.isActive(fx);
-  var sonicWorkshopActiveEarly = window.MineradioSonicWorkshop && MineradioSonicWorkshop.isActive(fx);
-  var skullBackdropDim = fx && fx.preset === SKULL_PRESET_INDEX ? 0.58 : (sonicPresetActiveEarly || sonicWorkshopActiveEarly ? 0.82 : 1);
+  var sonicPresetActiveEarly = window.AuroradioSonicTopography && AuroradioSonicTopography.isActive(fx);
+  var sonicWorkshopActiveEarly = window.AuroradioSonicWorkshop && AuroradioSonicWorkshop.isActive(fx);
+  var phoenixPresetActiveEarly = fxLayerActiveFor(PHOENIX_PRESET_INDEX);
+  var skullActiveEarly = fxLayerActiveFor(SKULL_PRESET_INDEX);
+  // 背景压暗本意: 对象型主体独占时压低壁纸粒子背景; 叠加显示粒子层时两层都是主角, 不压暗
+  var overlayParticleShown = getFxPresetOverlay() >= 0 && getFxPresetOverlay() <= 5
+    && fxPresetHidesBaseParticles(Number(fx.preset) || 0);
+  var objectLayerActive = skullActiveEarly || phoenixPresetActiveEarly || sonicPresetActiveEarly || sonicWorkshopActiveEarly;
+  var skullBackdropDim = (objectLayerActive && !overlayParticleShown)
+    ? (skullActiveEarly ? 0.58 : (phoenixPresetActiveEarly ? 0.50 : 0.82))
+    : 1;
   var shelfDimTarget = shouldDimWallpaperForShelf() ? 0.48 : skullBackdropDim;
   var shelfDimEase = shelfDimTarget < uniforms.uParticleDim.value ? 0.18 : 0.10;
   uniforms.uParticleDim.value += (shelfDimTarget - uniforms.uParticleDim.value) * Math.min(1, shelfDimEase * Math.max(1, dt * 60));
@@ -612,14 +628,18 @@ function animate() {
 
   // v7.2 旋转 = 头部+眼球追踪 + 鼠标/手势拖动 + 惯性
   tickGestureRotation(dt);
-  var skullPresetActive = fx && fx.preset === SKULL_PRESET_INDEX;
-  var workshopPresetActive = window.MineradioSonicWorkshop && MineradioSonicWorkshop.isActive(fx);
+  var skullPresetActive = fxLayerActiveFor(SKULL_PRESET_INDEX);
+  var phoenixPresetActive = fxLayerActiveFor(PHOENIX_PRESET_INDEX);
+  var workshopPresetActive = window.AuroradioSonicWorkshop && AuroradioSonicWorkshop.isActive(fx);
   var presetUsesStarRiverParticles = fx && (Number(fx.preset) === 5 || (typeof SONIC_PRESET_INDEX !== 'undefined' && Number(fx.preset) === SONIC_PRESET_INDEX));
   var presetStarRiverMuted = presetUsesStarRiverParticles && fx.backgroundStarRiver === false;
-  particles.visible = !skullPresetActive && !workshopPresetActive && !presetStarRiverMuted;
-  if (bloomParticles) bloomParticles.visible = !skullPresetActive && !workshopPresetActive && !presetStarRiverMuted && fx.bloom && fx.bloomStrength > 0.01;
-  if (floatGroup) floatGroup.visible = !skullPresetActive && !workshopPresetActive;
-  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !workshopPresetActive;
+  // 预设叠加: 基础粒子层跟随"有效粒子预设" (对象型主预设独占画面, 但叠加了粒子型预设时显示叠加层的粒子)
+  var overlayParticlePreset = getFxPresetOverlay() >= 0 && getFxPresetOverlay() <= 5;
+  var baseParticlesHidden = (fxPresetHidesBaseParticles(Number(fx.preset) || 0) && !overlayParticlePreset) || presetStarRiverMuted;
+  particles.visible = !baseParticlesHidden;
+  if (bloomParticles) bloomParticles.visible = !baseParticlesHidden && fx.bloom && fx.bloomStrength > 0.01;
+  if (floatGroup) floatGroup.visible = !skullPresetActive && !phoenixPresetActive && !workshopPresetActive;
+  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !phoenixPresetActive && !workshopPresetActive;
   var targetRotY = orbit.centerLocked ? 0 : (headParallax.active ? headParallax.x * 0.5 : 0) + gestureRotation.y;
   var targetRotX = orbit.centerLocked ? 0 : (headParallax.active ? -headParallax.y * 0.35 : 0) + gestureRotation.x;
   particles.rotation.y += (targetRotY - particles.rotation.y) * 0.055;
@@ -637,10 +657,12 @@ function animate() {
   var skullPerfStart = performance.now();
   var skullStepDt = consumeFrameGate(mainFrameGates.skullParticles, now, dt, targetMainSkullParticleFps(now), false, 'skull-particles');
   if (skullStepDt > 0) updateSkullParticleLayer(skullStepDt);
+  var phoenixStepDt = consumeFrameGate(mainFrameGates.phoenixParticles, now, dt, targetMainPhoenixParticleFps(now), false, 'phoenix-particles');
+  if (phoenixStepDt > 0) updatePhoenixParticleLayer(phoenixStepDt);
   if (perfProbe && perfProbe.markSince) perfProbe.markSince('visual.skull-particles', skullPerfStart);
   var sonicPerfStart = performance.now();
-  if (window.MineradioSonicTopography) {
-    MineradioSonicTopography.update(dt, {
+  if (window.AuroradioSonicTopography) {
+    AuroradioSonicTopography.update(dt, {
       scene: scene,
       fx: fx,
       time: uniforms.uTime.value,
@@ -653,8 +675,8 @@ function animate() {
   }
   if (perfProbe && perfProbe.markSince) perfProbe.markSince('visual.sonic-topography', sonicPerfStart);
   var sonicWorkshopPerfStart = performance.now();
-  if (window.MineradioSonicWorkshop) {
-    MineradioSonicWorkshop.update(dt, {
+  if (window.AuroradioSonicWorkshop) {
+    AuroradioSonicWorkshop.update(dt, {
       scene: scene,
       fx: fx,
       time: uniforms.uTime.value,

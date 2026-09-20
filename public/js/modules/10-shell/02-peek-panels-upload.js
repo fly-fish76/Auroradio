@@ -1,6 +1,6 @@
 // ============================================================
 var PEEK_HIDE_DELAY = 170;
-var PLAYLIST_PANEL_HIDE_DELAY = 72;
+var PLAYLIST_PANEL_HIDE_DELAY = 100;
 var peekTimers = { search: null, fx: null, pl: null };
 var searchPeekRevealToken = 0;
 var searchPeekRevealPending = false;
@@ -68,12 +68,83 @@ function shouldAnimatePlaylistPanelOpen(panel) {
   panel.__lastOpenListAnimAt = now;
   return true;
 }
+// Home 与左侧歌单面板联动: 缓冲区连续跟随 (抽屉式 scrub)
+// 鼠标 X ∈ [0, PLAYLIST_SCRUB_ZONE] 映射 p=1→0; 面板滑出与 home 旋转同步连续插值
+var PLAYLIST_SCRUB_FULL_X = 420;
+var PLAYLIST_SCRUB_RAMP = 150;
+var PLAYLIST_SCRUB_FULL_HOME_X = 150;
+var PLAYLIST_SCRUB_ZERO_HOME_X = 430;
+var PLAYLIST_SCRUB_LERP = 0.18;
+var playlistScrub = { p: 0, target: 0, raf: 0 };
+document.documentElement.style.setProperty('--pl-scrub', '0');
+function syncHomeRotationForPlaylistPanel() {
+  document.body.classList.toggle('playlist-scrub-live', playlistScrub.p > 0.002);
+}
+function playlistScrubTargetForPointer(ex, ey, H) {
+  if (playlistPanelPinned) return 1;
+  if (isPlaylistPanelBottomControlsConflict(ex, ey, H)) return 0;
+  if (emptyHomeActive) {
+    // home 场景: 只用左侧粒子边距做缓冲, 面板始终不会伸到 home 内容区(x≈340+)
+    var homeRect = document.getElementById('empty-home').getBoundingClientRect();
+    var fullX = Math.max(90, Math.round(homeRect.left * 0.45));
+    var zeroX = Math.max(fullX + 120, Math.round(homeRect.left) + 90);
+    // 吸附保持: 面板大部分已出且指针未离开面板范围 → 锁定全开, 操作时纹丝不动
+    if (playlistScrub.p > 0.55 && ex <= zeroX) return 1;
+    if (ex <= fullX) return 1;
+    return Math.max(0, Math.min(1, 1 - (ex - fullX) / (zeroX - fullX)));
+  }
+  // 非 home(播放/沉浸): 面板右缘内恒全开, 其后 150px 渐变带抽屉跟随
+  if (ex <= PLAYLIST_SCRUB_FULL_X) return 1;
+  return Math.max(0, Math.min(1, 1 - (ex - PLAYLIST_SCRUB_FULL_X) / PLAYLIST_SCRUB_RAMP));
+}
+function playlistScrubSetTarget(t) {
+  t = Math.max(0, Math.min(1, Number(t) || 0));
+  playlistScrub.target = t;
+  if (!playlistScrub.raf) playlistScrub.raf = requestAnimationFrame(playlistScrubTick);
+  return t;
+}
+function playlistScrubTick() {
+  playlistScrub.raf = 0;
+  var s = playlistScrub;
+  s.p += (s.target - s.p) * PLAYLIST_SCRUB_LERP;
+  if (Math.abs(s.target - s.p) < 0.0015) s.p = s.target;
+  document.documentElement.style.setProperty('--pl-scrub', s.p.toFixed(4));
+  var panel = document.getElementById('playlist-panel');
+  if (panel) {
+    // 语义类滞回: peek/show 仅作可见性/内容准备语义, 位姿与透明度由 --pl-scrub 接管
+    var peekOn = panel.classList.contains('peek') || panel.classList.contains('show');
+    if (s.p > 0.12 && !peekOn && !playlistPanelPinned) {
+      var firstOpen = !panel.dataset.preserveTabOnOpen;
+      preparePlaylistPanelTabOnOpen(panel);
+      panel.dataset.preserveTabOnOpen = '1';
+      panel.classList.add('peek');
+      var runAnim = shouldAnimatePlaylistPanelOpen(panel);
+      scheduleUiWarmTask(function () {
+        flushDeferredQueuePanel('playlist-panel-peek');
+        if (runAnim) animatePlaylistPanelCurrentTab(panel, { scrollActive: false });
+      }, 180);
+    } else if (s.p < 0.06 && peekOn && !playlistPanelPinned) {
+      panel.classList.remove('peek', 'show');
+      panel.dataset.preserveTabOnOpen = '';
+    }
+    panel.classList.toggle('scrub-pointer', s.p > 0.1);
+  }
+  syncHomeRotationForPlaylistPanel();
+  if (Math.abs(s.target - s.p) >= 0.0015) playlistScrub.raf = requestAnimationFrame(playlistScrubTick);
+}
 function setPeek(el, on, key) {
   if (!el) return;
   if (immersiveMode && on && (key === 'search' || key === 'fx')) return;
   if (on && !diyPlayerMode && key === 'fx') return;
   if (!on && key === 'search' && emptyHomeActive && !immersiveMode) return;
   if (!on && key === 'pl' && playlistPanelPinned) return;
+  if (key === 'pl') {
+    // 面板位姿由缓冲区跟随控制器接管: 这里只路由目标值并保留内容准备副作用,
+    // peek 语义类由 playlistScrubTick 滞回管理
+    if (on && !isPlaylistPanelActiveState(el)) preparePlaylistPanelTabOnOpen(el);
+    playlistScrubSetTarget(on ? 1 : 0);
+    return;
+  }
   if (on && key === 'fx') document.body.classList.remove('fullscreen-diy-peek');
   if (on) {
     if (key === 'pl') resetSecondaryPlaylistEdgeGuard();
@@ -92,6 +163,7 @@ function setPeek(el, on, key) {
     if (key === 'pl' && !wasPeek) preparePlaylistPanelTabOnOpen(el);
     el.classList.add('peek');
     if (key === 'pl' && !wasPeek) markPlaylistPanelMotion(el, playlistPanelMotionMs('open'));
+    if (key === 'pl') syncHomeRotationForPlaylistPanel();
     if (key === 'pl' && !wasPeek) {
       scheduleUiWarmTask(function () {
         flushDeferredQueuePanel('playlist-panel-peek');
@@ -109,7 +181,10 @@ function setPeek(el, on, key) {
     peekTimers[key] = setTimeout(function () {
       if (key === 'pl') el.classList.add('playlist-panel-closing');
       el.classList.remove('peek');
-      if (key === 'pl') markPlaylistPanelMotion(el, playlistPanelMotionMs('close'));
+      if (key === 'pl') {
+        markPlaylistPanelMotion(el, playlistPanelMotionMs('close'));
+        syncHomeRotationForPlaylistPanel();
+      }
       if (key === 'pl') setTimeout(function () { el.classList.remove('playlist-panel-closing'); }, playlistPanelMotionMs('close') + 80);
       if (key === 'fx') {
         var fabOff = document.getElementById('fx-fab');
@@ -389,16 +464,10 @@ window.addEventListener('mousemove', function (e) {
     updateShelfHoverCueFromPointer(e);
     updateShelfCardHoverSelection(e);
     updateControlsAutoHideFromPointer(ex, ey);
-    var ppOnImm = isPlaylistPanelActiveState(pp);
-    var ppRectImm = pp.getBoundingClientRect();
-    var inQueueTriggerImm = isPlaylistEdgeTrigger(ex, ey, H, e.target);
-    var inQueuePanelImm = isPlaylistPanelPanelHit(pp, ppRectImm, ex, ey);
-    var inQueueBridgeImm = isPlaylistPanelBridgeHit(pp, ppRectImm, ex, ey, H);
-    if (inQueueTriggerImm || inQueuePanelImm || inQueueBridgeImm) setPeek(pp, true, 'pl');
-    else if (shouldClosePlaylistPanelFromPointer(ppOnImm, ex, ppRectImm, ey, H)) setPeek(pp, false, 'pl');
+    playlistScrubSetTarget(playlistScrubTargetForPointer(ex, ey, H));
     var shelfCanFocusImm = !!(shelfManager && shelfManager.canInteract && shelfManager.canInteract());
     var newFocusImm = null;
-    var queueFocusImm = isPlaylistPanelFocusActive(inQueueTriggerImm, inQueuePanelImm || inQueueBridgeImm, pp, ex, ppRectImm, ey, H);
+    var queueFocusImm = playlistScrub.p >= 0.5;
     var shelfHoverFocusImm = !!(shelfCanFocusImm && isSideShelfFocusHit(e));
     if (queueFocusImm) newFocusImm = 'queue';
     else if (shelfManager && shelfManager.hasOpenContent && shelfManager.hasOpenContent()) newFocusImm = 'shelf-detail';
@@ -430,14 +499,8 @@ window.addEventListener('mousemove', function (e) {
   if (!diyPlayerMode) inFxPanel = inFxFab = inFxBridge = false;
   if (inFxFab || inFxPanel || inFxBridge) setPeek(fp, true, 'fx');
   else if (fpOn) setPeek(fp, false, 'fx');
-  // 歌单/队列 DOM 面板只在左侧明确停留时出现，避免和右侧 3D 架抢焦点
-  var ppOn = isPlaylistPanelActiveState(pp);
-  var ppRect = pp.getBoundingClientRect();
-  var inQueueTrigger = isPlaylistEdgeTrigger(ex, ey, H, e.target);
-  var inQueuePanel = isPlaylistPanelPanelHit(pp, ppRect, ex, ey);
-  var inQueueBridge = isPlaylistPanelBridgeHit(pp, ppRect, ex, ey, H);
-  if (inQueueTrigger || inQueuePanel || inQueueBridge) setPeek(pp, true, 'pl');
-  else if (shouldClosePlaylistPanelFromPointer(ppOn, ex, ppRect, ey, H)) setPeek(pp, false, 'pl');
+  // 歌单/队列 DOM 面板: 缓冲区连续跟随, 鼠标左移多出一点 / 右移收回一点
+  playlistScrubSetTarget(playlistScrubTargetForPointer(ex, ey, H));
 
   // v8: 镜头跟拍触发判断
   //   - 队列面板 peek 时 → queue focus
@@ -450,7 +513,8 @@ window.addEventListener('mousemove', function (e) {
   }
 
   var newFocus = null;
-  var queueFocusActive = isPlaylistPanelFocusActive(inQueueTrigger, inQueuePanel || inQueueBridge, pp, ex, ppRect, ey, H);
+  // home 显示时禁用相机跟拍: 粒子背景保持静止, 只让 DOM home 旋转让位
+  var queueFocusActive = playlistScrub.p >= 0.5 && !emptyHomeActive;
   var shelfHoverFocus = !!(shelfCanFocus && isSideShelfFocusHit(e));
   if (queueFocusActive) {
     newFocus = 'queue';

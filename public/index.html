@@ -4,16 +4,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mineradio</title>
+  <title>Auroradio</title>
   <meta name="referrer" content="no-referrer">
+  <!-- 首帧底色兜底：样式表加载前任何裸帧都不能是白的 -->
+  <style>html{background:#040507}</style>
+  <!-- 远程字体样式表改为非阻塞加载：否则断网/慢网时它卡住 index 首帧，
+       splash → index 的导航空档会露白。display=swap 保证字体就绪前先用回退字体。 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=UnifrakturCook:wght@700&display=swap"
-    rel="stylesheet">
+    rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=UnifrakturCook:wght@700&display=swap"
+      rel="stylesheet">
+  </noscript>
   <script src="vendor/three.r128.min.js"></script>
   <script src="vendor/music-tempo.min.js"></script>
   <script src="vendor/gsap.min.js"></script>
   <script src="js/preload-mode.js"></script>
-  <link rel="stylesheet" href="css/index.css?v=20260716-we-continuity-vsync">
+  <link rel="stylesheet" href="css/index.css?v=20260912-flight2">
 </head>
 
 <body>
@@ -26,15 +37,6 @@
       <div class="desktop-window-controls">
         <button id="visual-guide-btn" class="icon-btn" type="button" onclick="startVisualGuide({ manual: true })"
           title="查看使用引导" aria-label="查看使用引导">?</button>
-        <button id="update-entry" class="update-entry" type="button" onclick="openUpdatePanel()" title="发现新版本"
-          aria-label="发现新版本">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle class="update-ring" cx="12" cy="12" r="8.8"></circle>
-            <circle id="update-progress-ring" class="update-progress-ring" cx="12" cy="12" r="8.8"></circle>
-            <path class="update-arrow" d="M12 16.5V7.5"></path>
-            <path class="update-arrow" d="M8.7 10.7 12 7.4l3.3 3.3"></path>
-          </svg>
-        </button>
         <button id="diy-mode-btn" class="desktop-mode-btn" type="button" onclick="toggleDiyMode()" title="开启 DIY 玩家模式"
           aria-label="开启 DIY 玩家模式" aria-pressed="false">DIY</button>
         <button class="desktop-window-btn" data-window-action="minimize" title="最小化" aria-label="最小化">
@@ -83,10 +85,9 @@
 
       <!-- 主内容 -->
       <div class="splash-content">
-        <div class="splash-wordmark" id="splash-wordmark" aria-label="Mineradio">
-          <span class="splash-word-mine">Mine</span>
-          <span class="splash-word-radio" aria-label="radio">rad<span class="splash-word-i"
-              aria-hidden="true"></span><span class="splash-word-o">o</span></span>
+        <div class="splash-wordmark" id="splash-wordmark" aria-label="Auroradio">
+          <span class="splash-word-mine">Auro</span>
+          <span class="splash-word-radio" aria-label="radio">rad<span class="splash-word-i">i</span><span class="splash-word-o">o</span></span>
         </div>
         <div class="splash-signal-line"></div>
         <div class="splash-sub">private visual radio</div>
@@ -116,6 +117,10 @@
           <button id="search-mode-kugou" type="button" onclick="setSearchMode('kugou')" aria-selected="false">KG</button>
           <button id="search-mode-qishui" type="button" onclick="setSearchMode('qishui')" aria-selected="false">QS</button>
           <button id="search-mode-spotify" type="button" onclick="setSearchMode('spotify')" aria-selected="false">SP</button>
+          <button id="search-mode-lx" type="button" onclick="setSearchMode('lx')" aria-selected="false"
+            title="落雪聚合搜索: 酷我 / 酷狗 / QQ / 网易 / 咪咕 免登录">落雪</button>
+          <button id="search-mode-songlist" type="button" onclick="setSearchMode('lx-songlist')" aria-selected="false"
+            title="搜索在线歌单 (五平台聚合)">歌单</button>
           <button id="search-mode-podcast" type="button" onclick="setSearchMode('podcast')"
             aria-selected="false">Podcast</button>
         </div>
@@ -159,25 +164,9 @@
       </div>
     </div>
 
-    <!-- 音乐 Home：只承载当前 Mineradio 数据，不引入外部仓库的服务端接口。 -->
-    <section id="empty-home" aria-label="Mineradio 音乐首页">
+    <!-- 音乐 Home：只承载当前 Auroradio 数据，不引入外部仓库的服务端接口。 -->
+    <section id="empty-home" aria-label="Auroradio 音乐首页">
       <div class="empty-home-shell">
-        <div class="home-hero" aria-live="polite">
-          <div class="daily-review-card">
-            <div id="daily-review-date" class="daily-review-date"></div>
-            <div id="daily-review-time" class="daily-review-time">--:--</div>
-            <div class="daily-review-quote">“让今天的声音，从你喜欢的地方开始。”</div>
-            <div class="daily-review-source">— Mineradio</div>
-            <div class="daily-review-actions">
-              <button type="button" onclick="homeDashboardNextReview()">换一条</button>
-              <button id="home-dashboard-video-choose" type="button" onclick="openHomeDashboardVideoPicker()">选择 MP4</button>
-              <button id="home-dashboard-video-clear" type="button" onclick="clearHomeDashboardVideo()" hidden>移除视频</button>
-              <button type="button" onclick="openHomePlayerConsole()">展开播放器控制台</button>
-            </div>
-          </div>
-          <input id="home-dashboard-video-input" type="file" accept=".mp4,video/mp4" hidden aria-hidden="true">
-        </div>
-
         <div class="home-grid home-quick-grid" aria-label="常用音乐入口">
           <button class="home-card home-card-featured" data-home-tone="search" type="button"
             onclick="resumeHomeDashboardPlayback()">
@@ -187,17 +176,10 @@
             <div class="home-card-art"></div>
           </button>
           <button class="home-card home-card-quick" data-home-tone="library" type="button"
-            onclick="openHomeDashboardLibrary()">
-            <div class="home-card-label">LIBRARY</div>
-            <div class="home-card-title">音乐库</div>
-            <div class="home-card-sub">歌单、本地音乐和已登录平台</div>
-            <div class="home-card-art"></div>
-          </button>
-          <button class="home-card home-card-quick" data-home-tone="mix" type="button"
-            onclick="playHomeDaily()">
-            <div class="home-card-label">DAILY MIX</div>
-            <div class="home-card-title">每日推荐</div>
-            <div class="home-card-sub">使用当前 Mineradio 推荐数据</div>
+            onclick="openSongListPlaza()">
+            <div class="home-card-label">PLAZA</div>
+            <div class="home-card-title">音乐广场</div>
+            <div class="home-card-sub">在线歌单广场 · 五平台免登录</div>
             <div class="home-card-art"></div>
           </button>
           <button class="home-card home-card-quick" data-home-tone="playlist" type="button"
@@ -245,29 +227,26 @@
               </div>
               <div id="home-discovery-list" class="home-discovery-list" aria-live="polite"></div>
             </section>
-
-            <button class="home-insight-card home-ranking-entry" type="button" onclick="openHomeDashboardCharts()"
-              aria-label="打开音乐发现">
-              <span class="home-ranking-entry-copy">
-                <span class="home-insight-kicker">DISCOVER · 音乐发现</span>
-                <span class="home-ranking-entry-title">平台热歌与个人偏好</span>
-                <span class="home-ranking-entry-sub">打开平台推荐中心；没有可信推荐接口时会明确留空</span>
-              </span>
-              <span class="home-ranking-entry-art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-              <span class="home-next-arrow" aria-hidden="true">›</span>
-            </button>
-
-            <button class="home-insight-card home-ranking-entry home-radio-entry" type="button"
-              onclick="openHomeDashboardRadio()" aria-label="打开平台推荐">
-              <span class="home-ranking-entry-copy">
-                <span class="home-insight-kicker">PLATFORM PICKS · 平台推荐</span>
-                <span class="home-ranking-entry-title">推荐电台 / 歌单</span>
-                <span class="home-ranking-entry-sub">读取每日歌曲、推荐歌单与推荐 Feed，不用关键词搜索</span>
-              </span>
-              <span class="home-radio-entry-art" aria-hidden="true"><i></i><i></i></span>
-              <span class="home-next-arrow" aria-hidden="true">›</span>
-            </button>
           </div>
+
+          <section id="home-frequent-section" class="home-frequent-section" aria-label="常听排行" hidden>
+            <div class="home-frequent-panel" id="home-frequent-pl-panel">
+              <button class="home-frequent-head" type="button" onclick="toggleHomeFrequentFold('pl')"
+                aria-expanded="true">
+                <span class="home-insight-kicker">TOP PLAYLISTS · 常听歌单</span>
+                <span class="home-frequent-arrow" aria-hidden="true">▾</span>
+              </button>
+              <div id="home-frequent-pl-body" class="home-rank-list"></div>
+            </div>
+            <div class="home-frequent-panel" id="home-frequent-song-panel">
+              <button class="home-frequent-head" type="button" onclick="toggleHomeFrequentFold('song')"
+                aria-expanded="true">
+                <span class="home-insight-kicker">TOP SONGS · 常听歌曲</span>
+                <span class="home-frequent-arrow" aria-hidden="true">▾</span>
+              </button>
+              <div id="home-frequent-song-body" class="home-rank-list"></div>
+            </div>
+          </section>
 
           <div class="home-legacy-rail" aria-hidden="true">
             <div id="home-rail-title"></div>
@@ -349,6 +328,11 @@
 
       <div class="fx-section-label">视觉预设</div>
       <div class="preset-grid" id="preset-grid"></div>
+      <div class="fx-perpreset-row" id="fx-perpreset-row">
+        <button class="fx-mini-btn ghost" id="fx-perpreset-toggle" type="button"
+          onclick="toggleFxPerPresetSplit()">统一调节：开</button>
+        <span class="fx-perpreset-hint" id="fx-perpreset-hint">所有预设共享同一套参数</span>
+      </div>
       <div class="fx-section-label">用户存档</div>
       <div class="user-archive-grid" id="user-archive-grid"></div>
       <div class="fx-section-label">自定义颜色</div>
@@ -456,6 +440,27 @@
       <div class="fx-slider"><label>左栏收起</label><input id="fx-playlistclose" type="range" min="0.06" max="0.48"
           step="0.01"><output></output></div>
 
+      <div class="fx-section-label">播放器</div>
+      <div class="fx-seg" id="player-shell-style-seg">
+        <button data-player-shell="glass" type="button">默认玻璃</button>
+        <button data-player-shell="borderless" type="button">无边框</button>
+      </div>
+      <div class="fx-seg" id="progress-style-seg">
+        <button data-progress-style="default" type="button">默认</button>
+        <button data-progress-style="laser" type="button">激光</button>
+        <button data-progress-style="dots" type="button">粒子流</button>
+      </div>
+      <div class="fx-slider"><label>粒子密度</label><input id="fx-progressparticles" type="range" min="0" max="500"
+          step="1"><output></output></div>
+      <div class="fx-slider"><label>粒子亮度</label><input id="fx-progressbright" type="range" min="0" max="10"
+          step="0.05"><output></output></div>
+      <div class="fx-slider"><label>粒子尺寸</label><input id="fx-progresssize" type="range" min="0.5" max="2.2"
+          step="0.01"><output></output></div>
+      <div class="fx-seg" id="progress-spark-direction-seg">
+        <button data-spark-direction="down" type="button">火花向下</button>
+        <button data-spark-direction="left" type="button">火花向左</button>
+      </div>
+
       <div class="fx-section-label">主控</div>
       <div class="fx-slider"><label>律动强度</label><input id="fx-intensity" type="range" min="0.2" max="1.6"
           step="0.01"><output></output></div>
@@ -465,6 +470,8 @@
           step="0.01"><output></output></div>
       <div class="fx-slider"><label>镜头晃动</label><input id="fx-cineshake" type="range" min="0" max="1.8"
           step="0.01"><output></output></div>
+      <div class="fx-slider" title="视图缩放（相机距离，等同鼠标滚轮缩放；小=拉近，大=拉远）"><label>视图缩放</label><input
+          id="fx-zoom" type="range" min="0.1" max="120" step="0.05"><output></output></div>
       <div class="fx-slider"><label>歌词溢光</label><input id="fx-lyricglow" type="range" min="0" max="0.85"
           step="0.01"><output></output></div>
       <div class="fx-slider" id="fx-lyricbgadapt-row"><label>亮底避光</label><input id="fx-lyricbgadapt" type="range" min="0" max="1"
@@ -760,6 +767,11 @@
               step="1"><output></output></div>
           <div class="fx-slider"><label>左右角度</label><input id="fx-lyrictilty" type="range" min="-84" max="84"
               step="1"><output></output></div>
+          <div class="fx-toggle-grid">
+            <div class="fx-toggle" id="t-lyricKeepLevel" onclick="toggleFx('lyricKeepLevel')"
+              title="歌词保持水平：拖拽/旋转封面粒子时歌词不再跟着转（始终正对相机且无倾斜）；关闭后恢复跟随封面旋转">
+              <span>歌词保持水平</span><span class="dot"></span></div>
+          </div>
         </div>
       </div>
 
@@ -774,6 +786,9 @@
                 class="dot"></span></div>
             <div class="fx-toggle" id="t-cinema" onclick="toggleFx('cinema')"><span>电影镜头</span><span class="dot"></span>
             </div>
+            <div class="fx-toggle" id="t-zoomFixed" onclick="toggleFx('zoomFixed')"
+              title="固定缩放值：开启后记住当前缩放，以后打开程序/切换预设都按此距离展示"><span>固定缩放值</span><span
+                class="dot"></span></div>
             <div class="fx-toggle" id="t-lyricGlow" onclick="toggleFx('lyricGlow')"><span>歌词溢光</span><span
                 class="dot"></span></div>
             <div class="fx-toggle" id="t-lyricGlowBeat" onclick="toggleFx('lyricGlowBeat')"><span>鼓点溢光</span><span
@@ -801,7 +816,7 @@
             <div class="fx-toggle" id="t-desktopLyricsHighlight" onclick="toggleFx('desktopLyricsHighlight')"
               title="桌面歌词按播放进度高亮"><span>桌面歌词高亮跟随</span><span class="dot"></span></div>
             <div class="fx-toggle" id="t-wallpaperMode" onclick="toggleFx('wallpaperMode')"
-              title="把当前完整 Mineradio 放到 Windows 桌面；右上控制器可显示、隐藏桌面图标，Esc 退出">
+              title="把当前完整 Auroradio 放到 Windows 桌面；右上控制器可显示、隐藏桌面图标，Esc 退出">
               <span>完整桌面模式<em class="fx-dev-badge">试验</em></span><span class="dot"></span></div>
           </div>
           <div class="fx-section-label">桌面 / 壁纸</div>
@@ -993,7 +1008,7 @@
           <div class="fx-sub memory-status-sub" id="memory-status-sub">后台先压缩播放器进程；系统级释放可清工作集、修改页、待机页</div>
           <div class="fx-toggle-grid">
             <div class="fx-toggle" id="t-memoryAutoTrimApp" onclick="toggleFx('memoryAutoTrimApp')"
-              title="最小化、托盘后台或深度后台时压缩 Mineradio / Electron 工作集"><span>自动压缩播放器</span><span class="dot"></span></div>
+              title="最小化、托盘后台或深度后台时压缩 Auroradio / Electron 工作集"><span>自动压缩播放器</span><span class="dot"></span></div>
             <div class="fx-toggle" id="t-memoryAutoTrimOnBackground" onclick="toggleFx('memoryAutoTrimOnBackground')"
               title="只在最小化、隐藏或不可见后台触发自动压缩，前台播放不打断"><span>后台触发压缩</span><span class="dot"></span></div>
             <div class="fx-toggle" id="t-memoryAutoSystemTrim" onclick="toggleFx('memoryAutoSystemTrim')"
@@ -1021,9 +1036,9 @@
             <div class="cache-storage-head"><span>统一缓存目录</span><span id="cache-storage-total">读取中...</span></div>
             <code class="cache-storage-path" id="cache-storage-root">桌面版启动后读取</code>
             <div class="cache-storage-actions">
-              <button class="fx-mini-btn ghost" type="button" onclick="chooseMineradioCacheRoot()">更改目录</button>
-              <button class="fx-mini-btn ghost" type="button" onclick="refreshMineradioCacheSettings()">刷新占用</button>
-              <button class="fx-mini-btn ghost" type="button" id="cache-storage-restart" onclick="restartMineradioForCachePath()" hidden>重启生效</button>
+              <button class="fx-mini-btn ghost" type="button" onclick="chooseAuroradioCacheRoot()">更改目录</button>
+              <button class="fx-mini-btn ghost" type="button" onclick="refreshAuroradioCacheSettings()">刷新占用</button>
+              <button class="fx-mini-btn ghost" type="button" id="cache-storage-restart" onclick="restartAuroradioForCachePath()" hidden>重启生效</button>
             </div>
             <div class="cache-storage-row"><span>歌词 / 译文缓存</span><b id="cache-storage-lyrics-size">—</b></div>
             <code class="cache-storage-path small" id="cache-storage-lyrics-path">—</code>
@@ -1037,6 +1052,23 @@
             <code class="cache-storage-path small" id="cache-storage-userdata-path">—</code>
             <div class="fx-sub cache-storage-note" id="cache-storage-note">歌词缓存立即切换；网络、节奏分析与 WE 静音场景缓存目录在下次重启后切换。</div>
           </div>
+          <div class="fx-section-label">落雪自定义音源</div>
+          <div class="cache-storage-panel" id="lx-source-panel">
+            <div class="cache-storage-head"><span>音源脚本</span><span id="lx-source-status-text">读取中...</span></div>
+            <div class="cache-storage-actions">
+              <button class="fx-mini-btn ghost" type="button" onclick="importLxSourceScript()">导入脚本</button>
+              <button class="fx-mini-btn ghost" type="button" onclick="importLxDataNow()">从落雪导入</button>
+              <button class="fx-mini-btn ghost" type="button" onclick="refreshLxSourcePanel()">刷新状态</button>
+            </div>
+            <div id="lx-source-script-list" class="lx-source-script-list"></div>
+            <div class="fx-toggle on" id="t-lxSourcePrefer" onclick="toggleLxSourcePrefer()"
+              title="默认开启：所有歌曲（含汽水/Spotify）都优先用落雪音源解析，搜不到才回退官方接口；全部失败提示无音源"><span>全部歌曲优先用落雪音源</span><span class="dot"></span></div>
+            <div class="fx-sub cache-storage-note" id="lx-source-note">导入落雪音乐的自定义音源 JS 脚本后，VIP / 无版权歌曲播放时自动用脚本兜底，免登录免费听。<br><span class="lx-source-links">音源来源：<a href="https://github.com/guoyue2010/lxmusic-/releases" target="_blank" rel="noreferrer">guoyue2010/lxmusic- · Releases</a><a href="https://github.com/pdone/lx-music-source" target="_blank" rel="noreferrer">pdone/lx-music-source</a></span></div>
+          </div>
+          <div class="fx-slider" title="密度越高粒子越多（最高约 4 倍），性能开销也越大"><label>粒子密度</label><input id="fx-pdensity" type="range" min="1" max="4"
+              step="0.05"><output></output></div>
+          <div class="fx-slider"><label>粒子数量</label><input id="fx-pcount" type="range" min="0.1" max="1"
+              step="0.01"><output></output></div>
           <div class="fx-slider"><label>粒子尺寸</label><input id="fx-point" type="range" min="0.5" max="2.2"
               step="0.01"><output></output></div>
           <div class="fx-slider"><label>流速</label><input id="fx-speed" type="range" min="0.2" max="2.5"
@@ -1045,17 +1077,90 @@
               step="0.01"><output></output></div>
           <div class="fx-slider"><label>色彩张力</label><input id="fx-color" type="range" min="0.5" max="2.0"
               step="0.01"><output></output></div>
+          <div class="fx-slider" title="整体亮度倍率 0~10（非线性刻度：0~5 段覆盖实际 0~3 的敏感区，5~10 段覆盖 3~10；凤凰/基础粒子等预设同步生效）"><label>粒子亮度</label><input
+              id="fx-bright" type="range" min="0" max="10" step="0.05"><output></output></div>
+          <div class="fx-slider fx-seg-card" id="phoenix-color-modes"
+            title="凤凰配色：默认=经典火羽色；纯色=自定义通体颜色；封面=整体按封面取色映射默认色块区域（仅凤凰预设显示）">
+            <label>凤凰配色</label>
+            <div class="fx-seg phoenix-color-seg">
+              <button type="button" id="pf-color-default" onclick="setPhoenixColorMode('default')">默认</button>
+              <button type="button" id="pf-color-solid" onclick="setPhoenixColorMode('solid')">纯色</button>
+              <button type="button" id="pf-color-cover" onclick="setPhoenixColorMode('cover')">封面</button>
+            </div>
+          </div>
+          <div class="lyric-color-row" id="phoenix-color-picker-row" title="凤凰通体颜色（纯色模式）">
+            <input id="phoenix-color-picker" class="lyric-color-picker" type="color" value="#ff8a3c" title="凤凰通体颜色">
+            <div class="fx-color-row-label">凤凰颜色<small id="phoenix-color-value">#FF8A3C</small></div>
+            <button class="fx-mini-btn ghost" type="button" onclick="setPhoenixSolidColor('#ff8a3c')">火羽</button>
+          </div>
+          <div class="fx-slider fx-seg-card" id="phoenix-rhythm-modes"
+            title="粒子律动：鼓点=随鼓点平滑增亮（无闪跳）；呼吸=亮度在近暗到 9 之间循环缓慢漂移；线光=光带从凤凰头部扫到尾部，光带内提亮、带外压暗（仅凤凰预设显示）">
+            <label>粒子律动</label>
+            <div class="fx-seg">
+              <button type="button" id="pr-beat" onclick="setPhoenixRhythmMode('beat')">鼓点</button>
+              <button type="button" id="pr-breath" onclick="setPhoenixRhythmMode('breath')">呼吸</button>
+              <button type="button" id="pr-sweep" onclick="setPhoenixRhythmMode('sweep')">线光</button>
+            </div>
+          </div>
           <div class="fx-slider"><label>溢光强度</label><input id="fx-bloom" type="range" min="0" max="1.6"
               step="0.01"><output></output></div>
           <div class="fx-slider"><label>离散感</label><input id="fx-scatter" type="range" min="0" max="0.5"
               step="0.01"><output></output></div>
           <div class="fx-slider"><label>背景压缩</label><input id="fx-bgfade" type="range" min="0" max="1.2"
               step="0.01"><output></output></div>
+          <div class="fx-seg phoenix-flight-seg" id="phoenix-flight-modes"
+            title="凤凰飞行轨迹：盘旋/巡游为横向路径（互切，再点取消回原地），俯冲为独立叠加——如 盘旋+俯冲=沿椭圆轨迹俯冲飞行">
+            <button type="button" id="pf-path-circle" onclick="setPhoenixFlightPath('circle')">盘旋</button>
+            <button type="button" id="pf-path-patrol" onclick="setPhoenixFlightPath('patrol')">巡游</button>
+            <button type="button" id="pf-dive" onclick="togglePhoenixFlightDive()">俯冲</button>
+            <button type="button" id="pf-showpath" onclick="togglePhoenixFlightShowPath()"
+              title="用橙色虚线显示当前飞行轨迹（随倾斜/大小参数实时变化）">轨迹</button>
+          </div>
+          <div class="fx-slider" title="沿轨迹飞行的线速度"><label>轨迹速度</label><input id="fx-flightspeed" type="range" min="0.3" max="2.5"
+              step="0.05"><output></output></div>
+          <div class="fx-slider" title="轨迹整体大小（椭圆/巡游/俯冲幅度同比缩放，并随相机距离自适应）"><label>轨迹幅度</label><input id="fx-flightamp" type="range" min="0.3" max="1.8"
+              step="0.05"><output></output></div>
+          <div class="fx-slider" title="盘旋椭圆的横向半径倍数（1~5 倍，只作用于盘旋轨迹）"><label>椭圆大小</label><input id="fx-flightsize" type="range" min="1" max="5"
+              step="0.1"><output></output></div>
+          <div class="fx-slider" title="长轴在屏幕面内的倾斜角度：0° 横放，90° 竖放（像倾斜一条直线）"><label>椭圆倾斜</label><input id="fx-flighttilt" type="range" min="0" max="90"
+              step="1"><output></output></div>
+          <div class="fx-slider" title="把椭圆从屏幕面里旋出来的角度：0° 侧立成一条直线，90° 平铺在屏幕上"><label>椭圆旋转</label><input id="fx-flightspin" type="range" min="0" max="90"
+              step="1"><output></output></div>
+          <div class="fx-slider" title="凤凰整体位置的左右偏移（原地/盘旋/巡游/俯冲都生效，右为正）"><label>位置·左右</label><input
+              id="fx-phoenixx" type="range" min="-8" max="8" step="0.01"><output></output></div>
+          <div class="fx-slider" title="凤凰整体位置的上下偏移（原地/盘旋/巡游/俯冲都生效，上为正）"><label>位置·上下</label><input
+              id="fx-phoenixy" type="range" min="-2.5" max="2.5" step="0.01"><output></output></div>
+          <div class="fx-toggle-grid">
+            <div class="fx-toggle" id="t-lyricAvoidPhoenix" onclick="toggleFx('lyricAvoidPhoenix')"
+              title="凤凰显示且有歌词时，歌词自动下移到凤凰下方避让；关闭后歌词保持在原位">
+              <span>歌词自动避让</span><span class="dot"></span></div>
+          </div>
         </div>
       </div>
 
       <div class="fx-actions">
         <button class="fx-mini-btn" onclick="resetFx()">恢复默认</button>
+      </div>
+    </div>
+
+    <!-- 音乐广场 (全屏在线歌单页) -->
+    <div id="songlist-plaza-view" style="display:none">
+      <div class="sl-plaza-header">
+        <div class="sl-plaza-head-text">
+          <div class="fx-title sl-plaza-title">音乐广场</div>
+          <div class="fx-sub sl-plaza-subtitle">在线歌单广场 · 落雪音源免登录播放</div>
+        </div>
+        <div class="sl-plaza-head-actions">
+          <button class="sl-close-btn" onclick="closeSongListPlaza()" title="关闭音乐广场" aria-label="关闭音乐广场">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="sl-plaza-toolbar"></div>
+      <div id="sl-plaza-detail" style="display:none"></div>
+      <div id="sl-plaza-browse">
+        <div id="sl-plaza-grid" class="sl-plaza-grid"></div>
+        <div id="sl-plaza-footer"></div>
       </div>
     </div>
 
@@ -1084,8 +1189,10 @@
           <button id="tab-queue" class="panel-tab active" onclick="switchPlaylistTab('queue')">当前队列</button>
           <button id="tab-pl" class="panel-tab" onclick="switchPlaylistTab('playlists')">我的歌单</button>
           <button id="tab-podcast" class="panel-tab" onclick="switchPlaylistTab('podcasts')">我的播客</button>
+          <button id="tab-songlist" class="panel-tab" onclick="switchPlaylistTab('songlists')">歌单广场</button>
         </div>
       </div>
+      <div id="songlist-pane" style="display:none"></div>
       <div id="queue-pane">
         <div class="queue-toolbar">
           <div id="play-mode-chip" class="queue-chip">顺序循环</div>
@@ -1099,11 +1206,6 @@
         <div id="queue-list" class="queue-list"></div>
       </div>
       <div id="pl-pane" style="display:none">
-        <div class="queue-toolbar">
-          <div class="queue-chip">登录后显示网易云 / QQ 歌单</div>
-          <button class="fx-mini-btn ghost" onclick="refreshUserPlaylists(true)"
-            style="height:26px;padding:0 10px;font-size:11px">刷新</button>
-        </div>
         <div id="pl-list" style="margin-top:6px"></div>
       </div>
       <div id="podcast-pane" style="display:none">
@@ -1303,6 +1405,11 @@
             </svg></button>
         </div>
         <div class="control-cluster transport">
+          <button id="camera-reset-btn" class="ctrl-btn" onclick="resetCameraView()" title="视角回正：回到当前预设的默认视角"><svg
+              width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M23 7l-7 5 7 5V7z" />
+              <rect x="1" y="5" width="15" height="14" rx="2" />
+            </svg></button>
           <button id="play-mode-btn" class="ctrl-btn" onclick="cyclePlayMode()" title="播放顺序"><svg id="play-mode-icon"
               width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path d="M17 2l4 4-4 4" />
@@ -1483,8 +1590,8 @@
           </div>
           <div class="login-node-hub workflow-node" data-login-node="mr">
             <span class="flow-port in" data-login-mr-target="mr" title="MR 接入口"></span>
-            <span class="login-node-orb">MR</span>
-            <div class="login-node-copy"><b>MR</b><small>等待接入</small></div>
+            <span class="login-node-orb">A</span>
+            <div class="login-node-copy"><b>A</b><small>等待接入</small></div>
             <div class="login-mode-nodes">
               <button id="login-mode-official" class="login-mode-node active workflow-node" type="button" data-login-mode="official"
                 onclick="selectLoginMode('official')"><span class="provider-logo">QR</span><b>扫码</b><small>官方窗口</small></button>
@@ -1708,10 +1815,54 @@
         <div class="collect-create">
           <input id="collect-new-name" type="text" placeholder="新建歌单名称" autocomplete="off" maxlength="40">
           <button class="modal-btn primary" onclick="createPlaylistFromCollect()">创建</button>
+          <button class="modal-btn" onclick="createLocalPlaylistFromCollect()">存为本地</button>
         </div>
         <div id="collect-list" class="collect-list"></div>
         <div class="btn-row">
           <button class="modal-btn" onclick="closeCollectModal()">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新建本地歌单 -->
+    <div id="local-list-modal" class="modal-mask">
+      <div class="modal local-list-modal">
+        <h2>新建本地歌单</h2>
+        <div class="collect-create">
+          <input id="local-list-name" type="text" placeholder="歌单名称" autocomplete="off" maxlength="40">
+          <button class="modal-btn primary" onclick="submitLocalPlaylistCreate()">创建</button>
+        </div>
+        <div class="btn-row">
+          <button class="modal-btn" onclick="closeGsapModal(document.getElementById('local-list-modal'))">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 重命名本地歌单 -->
+    <div id="local-rename-modal" class="modal-mask">
+      <div class="modal local-list-modal">
+        <h2>重命名本地歌单</h2>
+        <div class="collect-create">
+          <input id="local-rename-name" type="text" placeholder="歌单名称" autocomplete="off" maxlength="40">
+          <button class="modal-btn primary" onclick="submitLocalPlaylistRename()">保存</button>
+        </div>
+        <div class="btn-row">
+          <button class="modal-btn" onclick="closeGsapModal(document.getElementById('local-rename-modal'))">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 链接导入歌单 (汽水分享链接等) -->
+    <div id="local-link-import-modal" class="modal-mask">
+      <div class="modal local-list-modal">
+        <h2>链接导入歌单</h2>
+        <div class="collect-create" style="flex-direction:column;align-items:stretch">
+          <textarea id="local-link-import-text" placeholder="粘贴分享文案或链接，例如：&#10;歌单｜我喜欢 https://qishui.douyin.com/s/xxxxx/ @汽水音乐" style="width:100%;min-height:88px;resize:vertical;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:inherit;padding:10px 12px;font-size:12.5px;line-height:1.5;outline:none"></textarea>
+          <div id="local-link-import-hint" style="font-size:11px;opacity:.55;margin-top:6px">支持汽水音乐歌单分享链接（免登录可导入，登录后导入更完整）</div>
+        </div>
+        <div class="btn-row">
+          <button class="modal-btn" onclick="closeGsapModal(document.getElementById('local-link-import-modal'))">取消</button>
+          <button class="modal-btn primary" onclick="submitLocalPlaylistLinkImport()">解析并导入</button>
         </div>
       </div>
     </div>
@@ -1767,36 +1918,6 @@
         <div id="track-detail-body"></div>
         <div class="btn-row">
           <button class="modal-btn" onclick="closeTrackDetailModal()">关闭</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="update-modal" class="modal-mask">
-      <div class="modal update-modal">
-        <div class="update-panel-inner">
-          <div class="update-panel-head">
-            <div>
-              <div class="update-kicker">MINERADIO</div>
-              <div id="update-modal-title" class="update-title">New release</div>
-              <div id="update-modal-version" class="update-version">v2.1.0</div>
-            </div>
-          </div>
-          <div class="update-hero">
-            <div id="update-hero-main" class="update-hero-main">电影镜头更稳，音源兜底更顺。</div>
-            <div id="update-hero-sub" class="update-hero-sub"></div>
-          </div>
-          <div id="update-list" class="update-list"></div>
-          <div id="update-download-sources" class="update-download-sources" hidden
-            aria-label="下载线路"></div>
-          <div class="update-actions">
-            <button id="update-primary-btn" class="update-primary-btn" type="button"
-              onclick="startUpdatePreviewDownload()">
-              <span id="update-btn-fill" class="update-btn-fill"></span>
-              <span id="update-btn-label" class="update-btn-label">查看更新页面</span>
-            </button>
-            <button class="update-secondary-btn" type="button" onclick="closeUpdatePanel()">取消</button>
-          </div>
-          <div id="update-footnote" class="update-footnote">将在浏览器打开下载页面，软件不会在本地下载或应用补丁。</div>
         </div>
       </div>
     </div>

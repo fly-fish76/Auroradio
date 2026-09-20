@@ -51,7 +51,7 @@ function saveBooleanPreference(key, on) {
 }
 function normalizePlaylistPanelTab(tab) {
   tab = String(tab || '').trim();
-  return tab === 'podcasts' ? 'podcasts' : (tab === 'playlists' ? 'playlists' : 'queue');
+  return tab === 'podcasts' ? 'podcasts' : (tab === 'playlists' ? 'playlists' : (tab === 'songlists' ? 'songlists' : 'queue'));
 }
 function readPlaylistPanelTabPreference() {
   try { return normalizePlaylistPanelTab(localStorage.getItem(PLAYLIST_PANEL_TAB_STORE_KEY) || 'queue'); } catch (e) { return 'queue'; }

@@ -4,7 +4,7 @@ var orbit = {
   cineTheta: 0.0, cinePhi: 0.0, cineRadius: 0.0,
   theta: 0.0, phi: 0.08, radius: 6.6,
   minPhi: -Math.PI * 0.45, maxPhi: Math.PI * 0.45,
-  minRadius: 2.4, maxRadius: 14.0,
+  minRadius: 0.1, maxRadius: 120,   // 缩放不设实际上下限 (滑杆/滚轮共用此范围)
   baselineTheta: 0.0, baselinePhi: 0.08, baselineRadius: 6.6,
   rotating: false, last: { x: 0, y: 0 },
   recentering: false,
@@ -205,26 +205,102 @@ function easeOutCubic01(t) {
 function shortestAngleDelta(from, to) {
   return Math.atan2(Math.sin(to - from), Math.cos(to - from));
 }
+// 默认视图 = 全景: 各预设基准半径已按原值 ×1.55 放大 (滚轮/缩放滑杆在此基础上调)
 function defaultOrbitStateForPreset(p) {
   p = Number(p) || 0;
-  if (p === 1) return { theta: 0.0, phi: 0.03, radius: 6.2 };
-  if (p === 2) return { theta: 0.0, phi: 0.15, radius: 7.0 };
-  if (p === 3) return { theta: 0.0, phi: 0.05, radius: 8.0 };
-  if (p === 4) return { theta: 0.0, phi: 0.04, radius: 6.5 };
-  if (p === 6) return { theta: 0.18, phi: 0.10, radius: 7.4 };
+  if (p === 1) return { theta: 0.0, phi: 0.03, radius: 9.6 };
+  if (p === 2) return { theta: 0.0, phi: 0.15, radius: 10.9 };
+  if (p === 3) return { theta: 0.0, phi: 0.05, radius: 12.4 };
+  if (p === 4) return { theta: 0.0, phi: 0.04, radius: 10.1 };
+  if (p === 6) return { theta: 0.18, phi: 0.10, radius: 11.5 };
+  if (p === 9) return { theta: 0.0, phi: 0.06, radius: 13.0 };
   if (typeof SONIC_PRESET_INDEX !== 'undefined' && p === SONIC_PRESET_INDEX) {
     return {
       theta: SONIC_ORBIT_BASELINE.theta,
       phi: SONIC_ORBIT_BASELINE.phi,
-      radius: SONIC_ORBIT_BASELINE.radius
+      radius: 13.0
     };
   }
-  return { theta: 0.0, phi: 0.08, radius: 6.6 };
+  return { theta: 0.0, phi: 0.08, radius: 10.2 };
+}
+// 固定缩放: 开启后启动/回正/切预设都使用用户固定的相机距离 (fx.zoomRadius)
+function fixedZoomRadiusForFx() {
+  if (typeof fx === 'undefined' || !fx || fx.zoomFixed !== true) return null;
+  var v = Number(fx.zoomRadius);
+  if (!isFinite(v) || v <= 0) return null;
+  return clampRange(v, orbit.minRadius, orbit.maxRadius);
+}
+// ============ 分预设缩放记忆 ============
+// 每个预设记住上次停留的相机半径 (滚轮/缩放滑杆), 切换预设/启动/回正时直接恢复;
+// 从未调过的预设仍用各自的基准全景。与"统一调节"开关无关, 始终生效。
+var FX_ZOOM_PRESET_STORE_KEY = 'mineradio-fx-zoom-v1';
+var fxZoomPresetStore = {};
+var fxZoomPresetLoaded = false;
+var fxZoomPresetSaveTimer = null;
+function fxZoomPresetLoad() {
+  if (fxZoomPresetLoaded) return;
+  fxZoomPresetLoaded = true;
+  try {
+    var raw = localStorage.getItem(FX_ZOOM_PRESET_STORE_KEY);
+    if (raw) fxZoomPresetStore = JSON.parse(raw) || {};
+  } catch (err) { fxZoomPresetStore = {}; }
+}
+function fxZoomPresetFlush() {
+  fxZoomPresetSaveTimer = null;
+  try { localStorage.setItem(FX_ZOOM_PRESET_STORE_KEY, JSON.stringify(fxZoomPresetStore)); } catch (err) {}
+}
+function fxZoomPresetScheduleSave() {
+  if (fxZoomPresetSaveTimer) clearTimeout(fxZoomPresetSaveTimer);
+  fxZoomPresetSaveTimer = setTimeout(fxZoomPresetFlush, 400);
+}
+function fxZoomPresetIndex() {
+  var p = Number(fx && fx.preset) || 0;
+  if (typeof presetMeta !== 'undefined' && presetMeta && presetMeta.length) {
+    p = clampRange(Math.round(p), 0, presetMeta.length - 1);
+  }
+  return p;
+}
+function fxZoomRememberFor(p) {
+  fxZoomPresetLoad();
+  var v = Number(fxZoomPresetStore[p]);
+  if (!isFinite(v) || v <= 0) return null;
+  return clampRange(v, orbit.minRadius, orbit.maxRadius);
+}
+function fxZoomRememberCurrent() {
+  if (typeof fx === 'undefined' || !fx) return;
+  if (typeof orbit === 'undefined' || !orbit || !isFinite(orbit.userRadius) || orbit.userRadius <= 0) return;
+  var v = clampRange(Math.round(orbit.userRadius * 100) / 100, orbit.minRadius, orbit.maxRadius);
+  var p = fxZoomPresetIndex();
+  fxZoomPresetLoad();
+  if (fxZoomPresetStore[p] !== v) {
+    fxZoomPresetStore[p] = v;
+    fxZoomPresetScheduleSave();
+  }
+}
+function fxClearZoomMemoryForCurrent() {
+  fxZoomPresetLoad();
+  var p = fxZoomPresetIndex();
+  if (fxZoomPresetStore[p] !== undefined) {
+    delete fxZoomPresetStore[p];
+    fxZoomPresetScheduleSave();
+  }
+}
+function fxZoomPresetClearAll() {
+  fxZoomPresetLoad();
+  fxZoomPresetStore = {};
+  fxZoomPresetScheduleSave();
 }
 function applyPresetOrbitBaseline(p, opts) {
   opts = opts || {};
   if (p === 5) return false;
   var base = defaultOrbitStateForPreset(p);
+  // 分预设缩放记忆优先; 从未调过且开了固定缩放时退回全局固定值
+  var rememberedRadius = fxZoomRememberFor(p);
+  if (rememberedRadius != null) base.radius = rememberedRadius;
+  else {
+    var fixedRadius = fixedZoomRadiusForFx();
+    if (fixedRadius != null) base.radius = fixedRadius;
+  }
   orbit.baselineTheta = base.theta;
   orbit.baselinePhi = clampRange(base.phi, orbit.minPhi, orbit.maxPhi);
   orbit.baselineRadius = clampRange(base.radius, orbit.minRadius, orbit.maxRadius);
@@ -239,6 +315,24 @@ function applyPresetOrbitBaseline(p, opts) {
   return true;
 }
 if (typeof fx !== 'undefined' && fx) applyPresetOrbitBaseline(fx.preset, { syncCurrent: true, startup: true });
+// 滑杆/重置按钮: 把 fx.zoomRadius 应用到轨道相机 (实时平滑缩放, 不直接跳变 orbit.radius)
+function applyFxZoomRadiusToOrbit(opts) {
+  if (typeof fx === 'undefined' || !fx) return false;
+  var v = Number(fx.zoomRadius);
+  if (!isFinite(v) || v <= 0) return false;
+  v = clampRange(v, orbit.minRadius, orbit.maxRadius);
+  fx.zoomRadius = Math.round(v * 100) / 100;
+  if (typeof unlockCenteredView === 'function') unlockCenteredView();
+  orbit.userRadius = v;
+  orbit.recentering = false;
+  // 记到当前预设名下 (滑杆调节); 恢复默认时改为遗忘该预设的记忆
+  if (opts && opts.forgetPreset) {
+    if (typeof fxClearZoomMemoryForCurrent === 'function') fxClearZoomMemoryForCurrent();
+  } else if (typeof fxZoomRememberCurrent === 'function') {
+    fxZoomRememberCurrent();
+  }
+  return true;
+}
 function dampCameraImpulseForRecenter(strength) {
   var damp = clampRange(strength == null ? 0.36 : strength, 0, 1);
   orbit.cineTheta *= damp;
@@ -498,4 +592,28 @@ function updateFreeCamera(dt) {
   var rollDir = (keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0);
   if (rollDir) freeCamera.roll = clampRange(freeCamera.roll + rollDir * dt * 0.9, -Math.PI, Math.PI);
   scheduleFreeCameraStateSave(720);
+}
+
+// 一键视角回正: 退出自由相机, 注视点归零, 回到当前预设的默认轨道视角
+function resetCameraView() {
+  if (typeof freeCamera !== 'undefined' && freeCamera) {
+    freeCamera.active = false;
+    freeCamera.locked = false;
+    freeCamera.keys = {};
+    if (freeCamera.velocity) freeCamera.velocity.set(0, 0, 0);
+    if (typeof releaseFreeCameraPointerLock === 'function') releaseFreeCameraPointerLock();
+    if (typeof updateFreeCameraHint === 'function') updateFreeCameraHint();
+  }
+  if (typeof orbit !== 'undefined' && orbit) {
+    orbit.centerLocked = false;
+    orbit.recentering = false;
+    if (orbit.lookAt) orbit.lookAt.set(0, 0, 0);
+    if (orbit.focus) {
+      orbit.focus.active = false;
+      orbit.focus.type = null;
+    }
+    if (typeof clearCenteredViewOffsets === 'function') clearCenteredViewOffsets();
+  }
+  applyPresetOrbitBaseline(fx && fx.preset, { syncCurrent: true });
+  if (typeof showToast === 'function') showToast('视角已回正');
 }

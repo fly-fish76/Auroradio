@@ -2,7 +2,7 @@ const path = require('path');
 
 const DEFAULT_WALLPAPER_STATE = Object.freeze({
   enabled: false,
-  title: 'Mineradio',
+  title: 'Auroradio',
   artist: '',
   cover: '',
   playing: false,
@@ -55,7 +55,7 @@ function normalizeWallpaperState(previous, payload, enabledOverride) {
       : current.enabled === true;
   return {
     enabled,
-    title: String(Object.prototype.hasOwnProperty.call(source, 'title') ? source.title : current.title || 'Mineradio').slice(0, 512),
+    title: String(Object.prototype.hasOwnProperty.call(source, 'title') ? source.title : current.title || 'Auroradio').slice(0, 512),
     artist: String(Object.prototype.hasOwnProperty.call(source, 'artist') ? source.artist : current.artist || '').slice(0, 512),
     cover: String(Object.prototype.hasOwnProperty.call(source, 'cover') ? source.cover : current.cover || ''),
     playing: Object.prototype.hasOwnProperty.call(source, 'playing') ? source.playing === true : current.playing === true,
@@ -101,11 +101,11 @@ function workerWAttachScript(input) {
   const height = Math.max(1, Math.round(Number(input.height) || 1));
   return `
 $ErrorActionPreference = "Stop"
-if (-not ("MineradioDesktopWallpaperNative" -as [type])) {
+if (-not ("AuroradioDesktopWallpaperNative" -as [type])) {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
-public static class MineradioDesktopWallpaperNative {
+public static class AuroradioDesktopWallpaperNative {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
   [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X; public int Y; }
   public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
@@ -132,44 +132,44 @@ public static class MineradioDesktopWallpaperNative {
 "@
 }
 $previousDpiContext = [IntPtr]::Zero
-try { $previousDpiContext = [MineradioDesktopWallpaperNative]::SetThreadDpiAwarenessContext([IntPtr]::new([Int64]-4)) } catch { }
-$progman = [MineradioDesktopWallpaperNative]::FindWindowByClass("Progman")
+try { $previousDpiContext = [AuroradioDesktopWallpaperNative]::SetThreadDpiAwarenessContext([IntPtr]::new([Int64]-4)) } catch { }
+$progman = [AuroradioDesktopWallpaperNative]::FindWindowByClass("Progman")
 if ($progman -eq [IntPtr]::Zero) { throw "WALLPAPER_PROGMAN_NOT_FOUND" }
 $sendResult = [IntPtr]::Zero
-[MineradioDesktopWallpaperNative]::SendMessageTimeout($progman, 0x052C, [IntPtr]::Zero, [IntPtr]::Zero, 0, 1000, [ref]$sendResult) | Out-Null
+[AuroradioDesktopWallpaperNative]::SendMessageTimeout($progman, 0x052C, [IntPtr]::Zero, [IntPtr]::Zero, 0, 1000, [ref]$sendResult) | Out-Null
 $script:workerw = [IntPtr]::Zero
-$callback = [MineradioDesktopWallpaperNative+EnumWindowsProc]{
+$callback = [AuroradioDesktopWallpaperNative+EnumWindowsProc]{
   param([IntPtr]$top, [IntPtr]$state)
-  $shellView = [MineradioDesktopWallpaperNative]::FindWindowExByClass($top, [IntPtr]::Zero, "SHELLDLL_DefView")
+  $shellView = [AuroradioDesktopWallpaperNative]::FindWindowExByClass($top, [IntPtr]::Zero, "SHELLDLL_DefView")
   if ($shellView -ne [IntPtr]::Zero) {
-    $candidate = [MineradioDesktopWallpaperNative]::FindWindowExByClass([IntPtr]::Zero, $top, "WorkerW")
+    $candidate = [AuroradioDesktopWallpaperNative]::FindWindowExByClass([IntPtr]::Zero, $top, "WorkerW")
     if ($candidate -ne [IntPtr]::Zero) { $script:workerw = $candidate }
   }
   return $true
 }
-[MineradioDesktopWallpaperNative]::EnumWindows($callback, [IntPtr]::Zero) | Out-Null
+[AuroradioDesktopWallpaperNative]::EnumWindows($callback, [IntPtr]::Zero) | Out-Null
 if ($script:workerw -eq [IntPtr]::Zero) { throw "WALLPAPER_WORKERW_NOT_FOUND" }
 $target = [IntPtr]::new([Int64]${hwnd})
-if (-not [MineradioDesktopWallpaperNative]::IsWindow($target)) { throw "WALLPAPER_TARGET_NOT_FOUND" }
+if (-not [AuroradioDesktopWallpaperNative]::IsWindow($target)) { throw "WALLPAPER_TARGET_NOT_FOUND" }
 $GWL_STYLE = -16
 $WS_POPUP = [Int64]0x80000000
 $WS_CHILD = [Int64]0x40000000
-$style = [MineradioDesktopWallpaperNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
+$style = [AuroradioDesktopWallpaperNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
 $childStyle = ($style -band (-bnot $WS_POPUP)) -bor $WS_CHILD
-[MineradioDesktopWallpaperNative]::SetWindowLongPtr($target, $GWL_STYLE, [IntPtr]::new([Int64]$childStyle)) | Out-Null
-$verifiedStyle = [MineradioDesktopWallpaperNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
+[AuroradioDesktopWallpaperNative]::SetWindowLongPtr($target, $GWL_STYLE, [IntPtr]::new([Int64]$childStyle)) | Out-Null
+$verifiedStyle = [AuroradioDesktopWallpaperNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
 if (($verifiedStyle -band $WS_CHILD) -eq 0 -or ($verifiedStyle -band $WS_POPUP) -ne 0) { throw "WALLPAPER_CHILD_STYLE_FAILED" }
-[MineradioDesktopWallpaperNative]::SetParent($target, $script:workerw) | Out-Null
-$parent = [MineradioDesktopWallpaperNative]::GetParent($target)
+[AuroradioDesktopWallpaperNative]::SetParent($target, $script:workerw) | Out-Null
+$parent = [AuroradioDesktopWallpaperNative]::GetParent($target)
 if ($parent -ne $script:workerw) { throw "WALLPAPER_WORKERW_ATTACH_FAILED" }
-$origin = New-Object MineradioDesktopWallpaperNative+POINT
+$origin = New-Object AuroradioDesktopWallpaperNative+POINT
 $origin.X = ${x}
 $origin.Y = ${y}
-if (-not [MineradioDesktopWallpaperNative]::ScreenToClient($script:workerw, [ref]$origin)) { throw "WALLPAPER_WORKERW_BOUNDS_FAILED" }
-$positioned = [MineradioDesktopWallpaperNative]::SetWindowPos($target, [IntPtr]::new([Int64]1), $origin.X, $origin.Y, ${width}, ${height}, 0x0030)
+if (-not [AuroradioDesktopWallpaperNative]::ScreenToClient($script:workerw, [ref]$origin)) { throw "WALLPAPER_WORKERW_BOUNDS_FAILED" }
+$positioned = [AuroradioDesktopWallpaperNative]::SetWindowPos($target, [IntPtr]::new([Int64]1), $origin.X, $origin.Y, ${width}, ${height}, 0x0030)
 if (-not $positioned) { throw "WALLPAPER_WORKERW_POSITION_FAILED" }
 $className = New-Object System.Text.StringBuilder 128
-[MineradioDesktopWallpaperNative]::GetClassName($script:workerw, $className, $className.Capacity) | Out-Null
+[AuroradioDesktopWallpaperNative]::GetClassName($script:workerw, $className, $className.Capacity) | Out-Null
 [pscustomobject]@{
   ok = $true
   targetWindowId = $target.ToInt64().ToString()
@@ -181,7 +181,7 @@ $className = New-Object System.Text.StringBuilder 128
   height = ${height}
 } | ConvertTo-Json -Compress
 if ($previousDpiContext -ne [IntPtr]::Zero) {
-  try { [MineradioDesktopWallpaperNative]::SetThreadDpiAwarenessContext($previousDpiContext) | Out-Null } catch { }
+  try { [AuroradioDesktopWallpaperNative]::SetThreadDpiAwarenessContext($previousDpiContext) | Out-Null } catch { }
 }
 `;
 }
@@ -449,7 +449,7 @@ class DesktopWallpaperRuntime {
       focusable: false,
       skipTaskbar: true,
       show: false,
-      title: 'Mineradio Desktop Wallpaper',
+      title: 'Auroradio Desktop Wallpaper',
       webPreferences: {
         preload: this.preloadPath,
         contextIsolation: true,

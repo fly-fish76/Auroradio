@@ -18,6 +18,8 @@ function syncPlaybackStateFromAudioEvent(reason) {
   playing = isPlaying;
   setPlayIcon(isPlaying);
   if (!isPlaying) hideLoading();
+  // 切歌后同步歌单详情/广场列表的"正在播放"行标记
+  if (typeof slRefreshPlazaPlayingRows === 'function') slRefreshPlazaPlayingRows();
   if (reason === 'play' || reason === 'playing') {
     switchPlaybackVisualToEmily();
     if (typeof markStageLyricsPlaybackResume === 'function') markStageLyricsPlaybackResume(reason);

@@ -60,6 +60,6 @@ function handleHomeTileClick(index) {
   else if (item.kind === 'playlist') openHomePlaylist(item.index);
   else if (item.kind === 'podcast') openHomePodcast(item.index);
   else if (item.kind === 'podcastSearch') { setSearchMode('podcast'); loadPodcastHot(); }
-  else if (item.kind === 'library') openHomeLibrary();
+  else if (item.kind === 'library') { if (typeof openSongListPlaza === 'function') openSongListPlaza(); else openHomeLibrary(); }
   else runHomeSearch(item.query || item.title || '');
 }

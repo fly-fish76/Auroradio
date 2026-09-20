@@ -60,6 +60,14 @@ var FX_CONSOLE_LAYOUT = [
         fxConsoleItem('fx-playlistdensity', '左栏遮挡', '歌单栏 密度 透明'),
         fxConsoleItem('fx-playlistopen', '左栏唤出', '打开速度 秒数'),
         fxConsoleItem('fx-playlistclose', '左栏收起', '关闭速度 秒数')
+      ] },
+      { key: 'player', title: '播放器', hint: '底栏外壳质感与进度条样式', items: [
+        fxConsoleItem('player-shell-style-seg', '播放器外壳', '底栏 玻璃 无边框 模糊 描边 阴影'),
+        fxConsoleItem('progress-style-seg', '进度条样式', '进度 激光 粒子流 粒子 点串 火花 封面取色 发光 细线'),
+        fxConsoleItem('fx-progressparticles', '粒子密度', '粒子 数量 密度 稀疏 密集 粒子流'),
+        fxConsoleItem('fx-progressbright', '粒子亮度', '进度 粒子 亮度 发光 强度'),
+        fxConsoleItem('fx-progresssize', '粒子尺寸', '进度 粒子 尺寸 大小 颗粒'),
+        fxConsoleItem('progress-spark-direction-seg', '火花坠落方向', '火花 向下 向左 重力 溅落 方向')
       ] }
     ]
   },
@@ -98,7 +106,8 @@ var FX_CONSOLE_LAYOUT = [
         fxConsoleItem('fx-lyricy', '上下位置', '歌词垂直 高度'),
         fxConsoleItem('fx-lyricz', '前后景深', '歌词远近 Z'),
         fxConsoleItem('fx-lyrictiltx', '上下旋转', '歌词俯仰'),
-        fxConsoleItem('fx-lyrictilty', '左右旋转', '歌词侧旋')
+        fxConsoleItem('fx-lyrictilty', '左右旋转', '歌词侧旋'),
+        fxConsoleItem('t-lyricKeepLevel', '歌词保持水平', '水平 不旋转 摆正 滚转 倾斜 跟随封面')
       ] },
       { key: 'motion', title: '歌词动画', hint: '滚动手感、上下文层次与故障效果', items: [
         fxConsoleItem('lyric-motion-style-seg', '歌词动画', '漂浮 柔滑 玻璃 线光 故障'),
@@ -127,6 +136,8 @@ var FX_CONSOLE_LAYOUT = [
     key: 'motion',
     groups: [
       { key: 'base', title: '基础画面', hint: '整体律动、景深、封面和电影镜头', open: true, items: [
+        fxConsoleItem('fx-zoom', '视图缩放', '缩放 相机 距离 滚轮 全景 远近 拉远 放大'),
+        fxConsoleItem('t-zoomFixed', '固定缩放值', '记住缩放 启动默认 全景 打开时'),
         fxConsoleItem('fx-intensity', '律动强度', '音乐响应 节奏'),
         fxConsoleItem('fx-depth', '画面景深', '立体感 深度'),
         fxConsoleItem('fx-coverres', '封面清晰度', '粒子数量 分辨率'),
@@ -138,13 +149,30 @@ var FX_CONSOLE_LAYOUT = [
         fxConsoleItem('t-bloom', '粒子溢光', '粒子光晕'),
         fxConsoleItem('t-edge', '轮廓高亮', '边缘光'),
         fxConsoleItem('t-backgroundStarRiver', '背景星河', '星空 粒子背景'),
+        fxConsoleItem('fx-pdensity', '粒子密度', '粒子倍增 数量 密度 更多'),
+        fxConsoleItem('fx-pcount', '粒子数量', '粒子密度 数量 性能 保留比例'),
         fxConsoleItem('fx-point', '粒子尺寸', '点大小'),
         fxConsoleItem('fx-speed', '运动速度', '粒子流速'),
         fxConsoleItem('fx-twist', '粒子扭曲', '旋转 扭曲'),
         fxConsoleItem('fx-color', '色彩张力', '粒子颜色 饱和'),
+        fxConsoleItem('fx-bright', '粒子亮度', '亮度 明暗 提亮 发光 增亮'),
+        fxConsoleItem('phoenix-color-modes', '凤凰配色', '凤凰 配色 默认 纯色 封面 取色 颜色'),
+        fxConsoleItem('phoenix-color-picker-row', '凤凰颜色', '凤凰 纯色 取色器 通体 颜色'),
+        fxConsoleItem('phoenix-rhythm-modes', '粒子律动', '律动 鼓点 呼吸 线光 节奏 亮度 扫光 节拍'),
         fxConsoleItem('fx-bloom', '光晕强度', '溢光 bloom'),
         fxConsoleItem('fx-scatter', '离散感', '粒子散开'),
         fxConsoleItem('fx-bgfade', '背景压暗', '背景压缩 暗度')
+      ] },
+      { key: 'phoenixFlight', title: '凤凰飞行', hint: '凤凰预设专属：轨迹模式可叠加（盘旋/巡游 + 俯冲）', items: [
+        fxConsoleItem('phoenix-flight-modes', '轨迹模式', '盘旋 巡游 俯冲 椭圆 飞行 轨迹 叠加'),
+        fxConsoleItem('fx-flightspeed', '轨迹速度', '飞行 快慢 线速度'),
+        fxConsoleItem('fx-flightamp', '轨迹幅度', '椭圆 大小 范围 幅度'),
+        fxConsoleItem('fx-flightsize', '椭圆大小', '椭圆 半径 倍数 盘旋大小'),
+        fxConsoleItem('fx-flighttilt', '椭圆倾斜', '倾斜 角度 长轴 竖 直 屏面'),
+        fxConsoleItem('fx-flightspin', '椭圆旋转', '旋转 旋出 屏面 立体 侧立 直线'),
+        fxConsoleItem('fx-phoenixx', '位置·左右', '凤凰 位置 左右 水平 偏移 移动'),
+        fxConsoleItem('fx-phoenixy', '位置·上下', '凤凰 位置 上下 垂直 高度 偏移 移动'),
+        fxConsoleItem('t-lyricAvoidPhoenix', '歌词自动避让', '遮挡 让位 避让 歌词 下移 凤凰')
       ] },
       { key: 'sonic-terrain', title: '音域地形', hint: '地面形态、颜色和空间位置', items: [
         fxConsoleItem('fx-sonicamp', '地面起伏', '音域振幅'),
@@ -285,8 +313,11 @@ var FX_CONSOLE_LAYOUT = [
       { key: 'cache', title: '缓存与存储', hint: '统一缓存目录、占用和各类路径', items: [
         fxConsoleItem('cache-storage-panel', '本地缓存', '缓存路径 缓存目录 占用 歌词 封面 音频 更新', false)
       ] },
+      { key: 'lx-source', title: '落雪自定义音源', hint: '导入音源脚本，VIP / 无版权歌曲免登录兜底播放', items: [
+        fxConsoleItem('lx-source-panel', '落雪自定义音源', '音源 脚本 导入 落雪 自定义源 启用 停用 优先 兜底 VIP 免费 无版权 登录', false)
+      ] },
       { key: 'experimental', title: '实验功能', hint: '尚未开放或需要谨慎使用的能力', items: [
-        fxConsoleItem('t-wallpaperMode', '完整桌面模式', '完整 Mineradio 进入桌面层 Ctrl Shift M 切换操作层 本次启动有效', false)
+        fxConsoleItem('t-wallpaperMode', '完整桌面模式', '完整 Auroradio 进入桌面层 Ctrl Shift M 切换操作层 本次启动有效', false)
       ] }
     ]
   }

@@ -167,6 +167,8 @@ function updateSearchModeTabs() {
   var kugouBtn = document.getElementById('search-mode-kugou');
   var qishuiBtn = document.getElementById('search-mode-qishui');
   var spotifyBtn = document.getElementById('search-mode-spotify');
+  var lxBtn = document.getElementById('search-mode-lx');
+  var songlistBtn = document.getElementById('search-mode-songlist');
   var podcastBtn = document.getElementById('search-mode-podcast');
   if (songBtn) {
     songBtn.classList.toggle('active', searchMode === 'song');
@@ -196,17 +198,27 @@ function updateSearchModeTabs() {
     podcastBtn.classList.toggle('active', searchMode === 'podcast');
     podcastBtn.setAttribute('aria-selected', searchMode === 'podcast' ? 'true' : 'false');
   }
+  if (lxBtn) {
+    lxBtn.classList.toggle('active', searchMode === 'lx');
+    lxBtn.setAttribute('aria-selected', searchMode === 'lx' ? 'true' : 'false');
+  }
+  if (songlistBtn) {
+    songlistBtn.classList.toggle('active', searchMode === 'lx-songlist');
+    songlistBtn.setAttribute('aria-selected', searchMode === 'lx-songlist' ? 'true' : 'false');
+  }
   if ($input) {
     $input.placeholder = searchMode === 'podcast'
       ? '搜索播客、电台...'
-      : (searchMode === 'kugou' ? '搜索酷狗音乐...' : (searchMode === 'qq' ? '搜索 QQ 音乐...' : (searchMode === 'netease' ? '搜索网易云音乐...' : '搜索歌曲、歌手...')));
+      : (searchMode === 'lx-songlist' ? '搜索在线歌单 (五平台聚合)...'
+        : (searchMode === 'lx' ? '搜索落雪聚合源 (酷我/酷狗/QQ/网易/咪咕)...'
+        : (searchMode === 'kugou' ? '搜索酷狗音乐...' : (searchMode === 'qq' ? '搜索 QQ 音乐...' : (searchMode === 'netease' ? '搜索网易云音乐...' : '搜索歌曲、歌手...')))));
   }
   if ($input && searchMode === 'qishui') $input.placeholder = '搜索汽水音乐匹配源...';
   if ($input && searchMode === 'spotify') $input.placeholder = '搜索 Spotify 匹配源...';
   requestAnimationFrame(updateSearchPillGlassDisplacementMap);
 }
 function setSearchMode(mode) {
-  mode = (mode === 'podcast' || mode === 'netease' || mode === 'qq' || mode === 'kugou' || mode === 'qishui' || mode === 'spotify') ? mode : 'song';
+  mode = (mode === 'podcast' || mode === 'netease' || mode === 'qq' || mode === 'kugou' || mode === 'qishui' || mode === 'spotify' || mode === 'lx' || mode === 'lx-songlist') ? mode : 'song';
   if (searchMode === mode) return;
   searchMode = mode;
   updateSearchModeTabs();
@@ -443,6 +455,7 @@ document.addEventListener('click', function (e) {
 updateSearchModeTabs();
 
 function songProviderKey(song) {
+  if (song && (song.provider === 'lx' || song.source === 'lx' || song.lxSource)) return 'lx';
   if (song && (song.provider === 'spotify' || song.source === 'spotify' || song.type === 'spotify' || song.spotifyId || song.spotifyUri)) return 'spotify';
   if (song && (song.provider === 'qq' || song.source === 'qq' || song.type === 'qq')) return 'qq';
   if (song && (song.provider === 'qishui' || song.source === 'qishui' || song.type === 'qishui')) return 'qishui';
@@ -452,8 +465,8 @@ function songProviderKey(song) {
 function songSourceTagHtml(song, opts) {
   opts = opts || {};
   var rawKey = song && (song.resolvedPlaybackProvider || song.playbackProvider || song.audioProvider || song.providerResolved || '');
-  var key = /^(netease|qq|kugou|qishui|spotify)$/.test(String(rawKey || '')) ? String(rawKey) : songProviderKey(song);
-  var label = key === 'qq' ? 'QQ' : (key === 'kugou' ? 'KG' : (key === 'qishui' ? 'QS' : (key === 'spotify' ? 'SP' : 'NE')));
+  var key = /^(netease|qq|kugou|qishui|spotify|lx)$/.test(String(rawKey || '')) ? String(rawKey) : songProviderKey(song);
+  var label = key === 'qq' ? 'QQ' : (key === 'kugou' ? 'KG' : (key === 'qishui' ? 'QS' : (key === 'spotify' ? 'SP' : (key === 'lx' ? '落雪' : 'NE'))));
   if (opts.switcher) {
     return '<button type="button" class="tag-source ' + key + ' control-source-chip" title="切换音源" aria-haspopup="true" onclick="toggleControlSourceSwitcher(event)">' + label + '</button>';
   }
@@ -765,6 +778,7 @@ function searchProviderIsLoggedIn(provider) {
   return !!(st && st.loggedIn);
 }
 function searchProviderCanSearch(provider) {
+  if (provider === 'lx') return true; // 落雪聚合源免登录
   var st = searchProviderStatus(provider) || {};
   var capabilities = st.capabilities || {};
   if (st.searchReady === true || st.publicCatalog === true || capabilities.search === true) return true;
@@ -774,7 +788,7 @@ function searchProviderCanSearch(provider) {
   return provider === 'netease' || provider === 'qq' || provider === 'kugou' || provider === 'qishui';
 }
 function searchModeProvider(mode) {
-  return mode === 'netease' || mode === 'qq' || mode === 'kugou' || mode === 'qishui' || mode === 'spotify' ? mode : '';
+  return mode === 'netease' || mode === 'qq' || mode === 'kugou' || mode === 'qishui' || mode === 'spotify' || mode === 'lx' ? mode : '';
 }
 function activeSearchProvidersForMode(mode) {
   var specific = searchModeProvider(mode);
@@ -791,6 +805,7 @@ function searchProviderLoginNotice(mode) {
 }
 function searchProviderUrl(provider, q, limit, offset) {
   var suffix = '&limit=' + limit + '&offset=' + Math.max(0, Number(offset) || 0);
+  if (provider === 'lx') return '/api/lx/search?source=all&keywords=' + encodeURIComponent(q) + suffix;
   if (provider === 'qq') return '/api/qq/search?keywords=' + encodeURIComponent(q) + suffix;
   if (provider === 'kugou') return '/api/kugou/search?keywords=' + encodeURIComponent(q) + suffix;
   if (provider === 'qishui') return '/api/qishui/search?keywords=' + encodeURIComponent(q) + suffix;
@@ -1016,7 +1031,7 @@ function scoreSongSearchResult(song, q, sourceIndex) {
   if (song && song.playable === false) score -= 6;
   return score;
 }
-function mergeSongSearchResults(neteaseSongs, qqSongs, kugouSongs, qishuiSongs, spotifySongs, limit, q) {
+function mergeSongSearchResults(neteaseSongs, qqSongs, kugouSongs, qishuiSongs, spotifySongs, lxSongs, limit, q) {
   var out = [];
   var providerSeen = {};
   var canonicalSeen = {};
@@ -1040,6 +1055,7 @@ function mergeSongSearchResults(neteaseSongs, qqSongs, kugouSongs, qishuiSongs, 
   (kugouSongs || []).forEach(function (song, i) { push(song, i); });
   (qishuiSongs || []).forEach(function (song, i) { push(song, i); });
   (spotifySongs || []).forEach(function (song, i) { push(song, i); });
+  (lxSongs || []).forEach(function (song, i) { push(song, i); });
   out.sort(function (a, b) { return (b._searchScore || 0) - (a._searchScore || 0); });
   return out.slice(0, limit);
 }
@@ -1077,7 +1093,7 @@ async function fetchMusicSearchResults(q, mode, previousPages) {
   Object.keys(previousPages || {}).forEach(function (provider) {
     providerPages[provider] = Object.assign({}, previousPages[provider]);
   });
-  var pageLimitByProvider = { netease: 18, qq: 12, kugou: 12, qishui: 12, spotify: 10 };
+  var pageLimitByProvider = { netease: 18, qq: 12, kugou: 12, qishui: 12, spotify: 10, lx: 20 };
   var fetchProviders = providers.filter(function (provider) {
     return !previousPages || !previousPages[provider] || previousPages[provider].hasMore;
   });
@@ -1089,7 +1105,7 @@ async function fetchMusicSearchResults(q, mode, previousPages) {
       return { provider: provider, offset: offset, requestedLimit: limit, value: value || {} };
     });
   }));
-  var songsByProvider = { netease: [], qq: [], kugou: [], qishui: [], spotify: [] };
+  var songsByProvider = { netease: [], qq: [], kugou: [], qishui: [], spotify: [], lx: [] };
   fetchProviders.forEach(function (provider, index) {
     var entry = result[index];
     if (!entry || entry.status !== 'fulfilled') {
@@ -1124,6 +1140,7 @@ async function fetchMusicSearchResults(q, mode, previousPages) {
     songsByProvider.kugou,
     songsByProvider.qishui,
     songsByProvider.spotify,
+    songsByProvider.lx,
     MUSIC_SEARCH_MAX_RESULTS,
     q
   );
@@ -1276,6 +1293,10 @@ async function doSearch(q, opts) {
   }
   if (searchMode === 'podcast') {
     doPodcastSearch(q);
+    return;
+  }
+  if (searchMode === 'lx-songlist') {
+    if (typeof handleSongListSearch === 'function') handleSongListSearch(q);
     return;
   }
   var requestSeq = ++searchRequestSeq;

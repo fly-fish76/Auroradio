@@ -14,7 +14,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-public sealed class MineradioDwmThumbnailProbe : Form {
+public sealed class AuroradioDwmThumbnailProbe : Form {
   [StructLayout(LayoutKind.Sequential)]
   private struct RECT {
     public int Left;
@@ -80,14 +80,14 @@ public sealed class MineradioDwmThumbnailProbe : Form {
   private readonly Timer followTimer;
   private IntPtr thumbnail = IntPtr.Zero;
 
-  public MineradioDwmThumbnailProbe(IntPtr host, IntPtr source) {
+  public AuroradioDwmThumbnailProbe(IntPtr host, IntPtr source) {
     hostWindow = host;
     sourceWindow = source;
     FormBorderStyle = FormBorderStyle.None;
     ShowInTaskbar = false;
     StartPosition = FormStartPosition.Manual;
     BackColor = Color.Black;
-    Text = "Mineradio WE DWM Surface Probe";
+    Text = "Auroradio WE DWM Surface Probe";
     followTimer = new Timer();
     followTimer.Interval = 33;
     followTimer.Tick += delegate { FollowHost(); };
@@ -142,9 +142,9 @@ public sealed class MineradioDwmThumbnailProbe : Form {
     int width = Math.Max(1, hostRect.Right - hostRect.Left);
     int height = Math.Max(1, hostRect.Bottom - hostRect.Top);
 
-    // The probe is immediately behind Mineradio. The real WE source remains
+    // The probe is immediately behind Auroradio. The real WE source remains
     // aligned one z-order level further back so it receives the same global
-    // cursor geometry without ever covering or receiving Mineradio clicks.
+    // cursor geometry without ever covering or receiving Auroradio clicks.
     SetWindowPos(Handle, hostWindow, hostRect.Left, hostRect.Top, width, height,
       SWP_NOACTIVATE | SWP_SHOWWINDOW);
     SetWindowPos(sourceWindow, Handle, hostRect.Left, hostRect.Top, width, height,
@@ -168,9 +168,9 @@ public sealed class MineradioDwmThumbnailProbe : Form {
   public static void Run(long host, long source) {
     Application.EnableVisualStyles();
     Application.SetCompatibleTextRenderingDefault(false);
-    Application.Run(new MineradioDwmThumbnailProbe(new IntPtr(host), new IntPtr(source)));
+    Application.Run(new AuroradioDwmThumbnailProbe(new IntPtr(host), new IntPtr(source)));
   }
 }
 '@
 
-[MineradioDwmThumbnailProbe]::Run($HostWindow, $SourceWindow)
+[AuroradioDwmThumbnailProbe]::Run($HostWindow, $SourceWindow)

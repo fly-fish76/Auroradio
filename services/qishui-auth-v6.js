@@ -3,7 +3,7 @@
 // Focused authentication port from Wx2yZx/Mineradio-Qishui-QR-Login
 // revision aaadaab7d011714f94fbe45b382ba8dcc7cf17b9 (GPL-3.0-only).
 // This module intentionally owns only the official Passport Web QR flow.
-// Mineradio's catalogue, playlist and playback adapters remain in qishui-api.js.
+// Auroradio's catalogue, playlist and playback adapters remain in qishui-api.js.
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -28,7 +28,7 @@ const UA =
   '(KHTML, like Gecko) SodaMusic/3.2.1 Chrome/136.0.7103.59 ' +
   'Electron/36.4.0-rs.22.release.main.1 TTElectron/36.4.0-rs.22.release.main.1 Safari/537.36';
 
-const ASSET_DIR = path.join(__dirname, 'qishui-auth-v6');
+const ASSET_DIR = path.join(__dirname, '..', 'qishui-auth-v6');
 const ASSETS = new Map([
   ['security_seed.html', 'text/html; charset=utf-8'],
   ['security_host.html', 'text/html; charset=utf-8'],

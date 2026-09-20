@@ -44,7 +44,7 @@ const NATIVE_TYPE_BLOCK = [
   '  public IntPtr CurrentSizeIncludingTransitionInPages; public IntPtr PeakSizeIncludingTransitionInPages;',
   '  public uint TransitionRePurposeCount; public uint Flags;',
   '}',
-  'public static class MineradioMemNative {',
+  'public static class AuroradioMemNative {',
   '  const int SystemMemoryListInformation = 0x50;',
   '  const int SystemFileCacheInformationEx = 0x51;',
   '  const uint SE_PRIVILEGE_ENABLED = 2;',
@@ -126,7 +126,7 @@ function defaultNativeTempPath() {
   const configured = String(process.env.MINERADIO_NATIVE_TEMP_DIR || '').trim();
   if (configured) return path.resolve(configured);
   const localRoot = String(process.env.LOCALAPPDATA || process.env.APPDATA || os.tmpdir()).trim();
-  return path.join(localRoot, 'Mineradio', 'native-helper-temp');
+  return path.join(localRoot, 'Auroradio', 'native-helper-temp');
 }
 
 function setNativeTempPath(value) {
@@ -230,29 +230,29 @@ function buildPurgeScript(mask, resultPath) {
   const m = normalizeMask(mask);
   const lines = [
     NATIVE_TYPE_BLOCK,
-    '[MineradioMemNative]::PreparePrivileges() | Out-Null',
+    '[AuroradioMemNative]::PreparePrivileges() | Out-Null',
     '$mask = ' + m,
-    '$before = [MineradioMemNative]::GetUsedPhys()',
-    '$loadBefore = [MineradioMemNative]::GetMemoryLoad()',
+    '$before = [AuroradioMemNative]::GetUsedPhys()',
+    '$loadBefore = [AuroradioMemNative]::GetMemoryLoad()',
     '$steps = @()',
   ];
 
   if ((m & MEMORY_MASK.workingSet) !== 0) {
-    lines.push('$steps += @{ id="workingSet"; status=[MineradioMemNative]::PurgeList(' + MEMORY_CMD.emptyWorkingSets + ') }');
-    lines.push('$steps += @{ id="systemFileCache"; status=[MineradioMemNative]::FlushSystemFileCache() }');
+    lines.push('$steps += @{ id="workingSet"; status=[AuroradioMemNative]::PurgeList(' + MEMORY_CMD.emptyWorkingSets + ') }');
+    lines.push('$steps += @{ id="systemFileCache"; status=[AuroradioMemNative]::FlushSystemFileCache() }');
   }
   if ((m & MEMORY_MASK.modifiedList) !== 0) {
-    lines.push('$steps += @{ id="modifiedList"; status=[MineradioMemNative]::PurgeList(' + MEMORY_CMD.flushModifiedList + ') }');
+    lines.push('$steps += @{ id="modifiedList"; status=[AuroradioMemNative]::PurgeList(' + MEMORY_CMD.flushModifiedList + ') }');
   }
   if ((m & MEMORY_MASK.standbyList) !== 0) {
-    lines.push('$steps += @{ id="standbyList"; status=[MineradioMemNative]::PurgeList(' + MEMORY_CMD.purgeStandbyList + ') }');
+    lines.push('$steps += @{ id="standbyList"; status=[AuroradioMemNative]::PurgeList(' + MEMORY_CMD.purgeStandbyList + ') }');
   }
   if ((m & MEMORY_MASK.standbyLow) !== 0) {
-    lines.push('$steps += @{ id="standbyLow"; status=[MineradioMemNative]::PurgeList(' + MEMORY_CMD.purgeStandbyLow + ') }');
+    lines.push('$steps += @{ id="standbyLow"; status=[AuroradioMemNative]::PurgeList(' + MEMORY_CMD.purgeStandbyLow + ') }');
   }
 
-  lines.push('$after = [MineradioMemNative]::GetUsedPhys()');
-  lines.push('$loadAfter = [MineradioMemNative]::GetMemoryLoad()');
+  lines.push('$after = [AuroradioMemNative]::GetUsedPhys()');
+  lines.push('$loadAfter = [AuroradioMemNative]::GetMemoryLoad()');
   lines.push('$obj = @{ ok=$true; beforeBytes=$before; afterBytes=$after; freedBytes=($before-$after); loadBefore=$loadBefore; loadAfter=$loadAfter; steps=$steps }');
   lines.push('$json = $obj | ConvertTo-Json -Compress -Depth 5');
   if (resultPath) {
@@ -316,7 +316,7 @@ function probeProcessElevation() {
   if (!isWin) return Promise.resolve(false);
   const scriptPath = writeTempScript('elev-check', [
     NATIVE_TYPE_BLOCK,
-    'Write-Output ([MineradioMemNative]::IsTokenElevated() | ConvertTo-Json -Compress)',
+    'Write-Output ([AuroradioMemNative]::IsTokenElevated() | ConvertTo-Json -Compress)',
   ]);
   return runPowerShellFile(scriptPath, 10000).then((value) => {
     if (typeof value !== 'boolean') throw new Error('PROCESS_ELEVATION_PROBE_INVALID');
@@ -361,7 +361,7 @@ function purgeSystemMemoryElevated(mask, options) {
       ok: false,
       disabled: true,
       needAdmin: false,
-      message: 'Elevated memory purge is disabled by default; Mineradio will not open administrator PowerShell windows.',
+      message: 'Elevated memory purge is disabled by default; Auroradio will not open administrator PowerShell windows.',
     });
   }
   if (!isWin) {
@@ -409,9 +409,9 @@ function queryExtendedMemoryStats() {
   if (extendedCache.data && now - extendedCache.at < 8000) return Promise.resolve(extendedCache.data);
   const scriptPath = writeTempScript('mem-stats', [
     NATIVE_TYPE_BLOCK,
-    '$total = [MineradioMemNative]::GetTotalPhys()',
-    '$avail = [MineradioMemNative]::GetAvailPhys()',
-    '$load = [MineradioMemNative]::GetMemoryLoad()',
+    '$total = [AuroradioMemNative]::GetTotalPhys()',
+    '$avail = [AuroradioMemNative]::GetAvailPhys()',
+    '$load = [AuroradioMemNative]::GetMemoryLoad()',
     '$used = if ($total -gt $avail) { $total - $avail } else { 0 }',
     '@{ totalBytes=$total; freeBytes=$avail; usedBytes=$used; loadPercent=$load } | ConvertTo-Json -Compress',
   ]);
@@ -453,7 +453,7 @@ function trimAppWorkingSets(pids) {
   const scriptPath = writeTempScript('mem-trim', [
     'Add-Type @\'',
     'using System; using System.Runtime.InteropServices;',
-    'public static class MineradioTrim {',
+    'public static class AuroradioTrim {',
     '  [DllImport("psapi.dll")] public static extern bool EmptyWorkingSet(IntPtr h);',
     '  [DllImport("kernel32.dll")] public static extern IntPtr OpenProcess(int a, bool i, int pid);',
     '  [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr h);',
@@ -466,7 +466,7 @@ function trimAppWorkingSets(pids) {
     '}',
     '\'@',
     '$pids = @(' + pidLiteral + ')',
-    '$trimmed = [MineradioTrim]::TrimMany([int[]]$pids)',
+    '$trimmed = [AuroradioTrim]::TrimMany([int[]]$pids)',
     'Write-Output (@{ ok=$true; trimmed=$trimmed; scope="app"; pids=$pids } | ConvertTo-Json -Compress)',
   ]);
   return runPowerShellFile(scriptPath, 20000)

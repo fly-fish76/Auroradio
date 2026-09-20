@@ -1037,7 +1037,7 @@ function ensureSonicWorkshopCoverPaletteForUi() {
       cx.drawImage(img, (iw - crop) / 2, (ih - crop) / 2, crop, crop, 0, 0, size, size);
       applySonicWorkshopCoverCanvasForUi(cv, key);
       updateSonicWorkshopColorControls();
-      if (window.MineradioSonicWorkshop && typeof MineradioSonicWorkshop.pushProperties === 'function') MineradioSonicWorkshop.pushProperties(true);
+      if (window.AuroradioSonicWorkshop && typeof AuroradioSonicWorkshop.pushProperties === 'function') AuroradioSonicWorkshop.pushProperties(true);
     } catch (e) {
       console.warn('sonic workshop cover UI sample failed:', e);
     }
@@ -1111,7 +1111,7 @@ function updateSonicWorkshopColorControls() {
 }
 function pushSonicWorkshopColorChange(reason) {
   updateSonicWorkshopColorControls();
-  var workshop = window.MineradioSonicWorkshop;
+  var workshop = window.AuroradioSonicWorkshop;
   if (workshop && typeof workshop.pushProperties === 'function') workshop.pushProperties(true);
   if (typeof syncFxUniforms === 'function') syncFxUniforms();
   saveLyricLayout({ user: true, reason: reason || 'sonicWorkshopRegionColors' });

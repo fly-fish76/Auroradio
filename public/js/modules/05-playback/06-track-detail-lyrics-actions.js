@@ -1441,15 +1441,14 @@ function toggleLikeDetailSong(song) { toggleLikeSong(song); }
 function openCollectModal(song) {
   var provider = songAccountProvider(song);
   var adapter = songAccountAdapter(provider);
-  if (!adapter || !adapter.collect || !adapter.playlistAddUrl) {
-    showToast(songAccountUnsupportedMessage(provider, 'collect'));
-    return;
-  }
-  if (!ensureLoggedInForAction(provider)) return;
+  var canPlatformCollect = !!(adapter && adapter.collect && adapter.playlistAddUrl);
   collectTargetSong = song;
   renderCollectModal();
   openGsapModal(document.getElementById('collect-modal'));
-  refreshUserPlaylists(true).then(function () { renderCollectModal(); }).catch(function () { renderCollectModal(); });
+  // 平台歌单区块仅在已登录时拉取; 本地歌单区块始终可用
+  if (canPlatformCollect && isSongAccountLoggedIn(provider)) {
+    refreshUserPlaylists(true).then(function () { renderCollectModal(); }).catch(function () { renderCollectModal(); });
+  }
 }
 function openCollectModalForCurrent() { openCollectModal(currentCoverSong()); }
 function collectSearchResult(i) { if (playlist[i]) openCollectModal(playlist[i]); }
@@ -1472,32 +1471,31 @@ function renderCollectModal() {
     '<div style="min-width:0"><div class="collect-title">' + escHtml(song.name || '当前歌曲') + '</div><div class="collect-sub">' + escHtml(song.artist || '') + '</div></div>';
   var provider = songAccountProvider(song);
   var adapter = songAccountAdapter(provider);
+  var localSection = (typeof renderLocalCollectSectionHtml === 'function') ? renderLocalCollectSectionHtml() : '';
+  var platformSection = '';
   if (!adapter || !adapter.collect) {
-    list.innerHTML = '<div class="collect-empty">' + escHtml(songAccountUnsupportedMessage(provider, 'collect')) + '</div>';
-    return;
+    platformSection = '<div class="collect-empty">' + escHtml(songAccountUnsupportedMessage(provider, 'collect')) + '</div>';
+  } else if (!isSongAccountLoggedIn(provider)) {
+    platformSection = '<div class="collect-empty">登录' + escHtml(adapter.label) + '后显示你的歌单</div>';
+  } else if (!userPlaylists.length) {
+    platformSection = miniQueueSkeleton();
+  } else {
+    var mine = userPlaylists.filter(function (pl) {
+      return playlistAccountProvider(pl) === provider && !pl.subscribed && !pl.virtual;
+    });
+    if (!mine.length) {
+      platformSection = '<div class="collect-empty">还没有可写入的歌单，可以先新建一个</div>';
+    } else {
+      platformSection = mine.map(function (pl) {
+        var thumb = pl.cover ? coverUrlWithSize(pl.cover, 80) : '';
+        return '<div class="collect-item" data-collect-pid="' + escHtml(String(pl.id || '')) + '" onclick="addCollectTargetToPlaylist(this.getAttribute(\'data-collect-pid\'))">' +
+          (thumb ? '<img src="' + thumb + '" alt="">' : '<div class="cover-placeholder"></div>') +
+          '<div style="min-width:0"><div class="collect-title">' + escHtml(pl.name || '') + '</div><div class="collect-sub">' + (pl.trackCount || 0) + ' 首</div></div>' +
+          '</div>';
+      }).join('');
+    }
   }
-  if (!isSongAccountLoggedIn(provider)) {
-    list.innerHTML = '<div class="collect-empty">登录' + escHtml(adapter.label) + '后显示你的歌单</div>';
-    return;
-  }
-  if (!userPlaylists.length) {
-    list.innerHTML = miniQueueSkeleton();
-    return;
-  }
-  var mine = userPlaylists.filter(function (pl) {
-    return playlistAccountProvider(pl) === provider && !pl.subscribed && !pl.virtual;
-  });
-  if (!mine.length) {
-    list.innerHTML = '<div class="collect-empty">还没有可写入的歌单，可以先新建一个</div>';
-    return;
-  }
-  list.innerHTML = mine.map(function (pl) {
-    var thumb = pl.cover ? coverUrlWithSize(pl.cover, 80) : '';
-    return '<div class="collect-item" data-collect-pid="' + escHtml(String(pl.id || '')) + '" onclick="addCollectTargetToPlaylist(this.getAttribute(\'data-collect-pid\'))">' +
-      (thumb ? '<img src="' + thumb + '" alt="">' : '<div class="cover-placeholder"></div>') +
-      '<div style="min-width:0"><div class="collect-title">' + escHtml(pl.name || '') + '</div><div class="collect-sub">' + (pl.trackCount || 0) + ' 首</div></div>' +
-      '</div>';
-  }).join('');
+  list.innerHTML = localSection + (platformSection ? '<div class="collect-section-label">' + escHtml((adapter && adapter.label) || '平台') + '歌单</div>' + platformSection : '');
   if (window.gsap) animateListItems(list, '.collect-item', { x: 0, y: 6, stagger: 0.012, duration: 0.18, limit: 18 });
 }
 function setCollectBusyPid(pid, busy) {
@@ -1511,7 +1509,7 @@ async function createPlaylistFromCollect() {
   var provider = songAccountProvider(collectTargetSong);
   var adapter = songAccountAdapter(provider);
   if (!adapter || !adapter.createPlaylist || !adapter.playlistCreateUrl) {
-    showToast((adapter && adapter.label || '当前平台') + '暂不支持在 Mineradio 内新建歌单');
+    showToast((adapter && adapter.label || '当前平台') + '暂不支持在 Auroradio 内新建歌单');
     return;
   }
   if (!ensureLoggedInForAction(provider)) return;

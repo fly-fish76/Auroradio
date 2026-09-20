@@ -58,10 +58,10 @@ const http = require('http');
 const https = require('https');
 const fs   = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const crypto = require('crypto');
 const tls = require('tls');
-const { fileURLToPath } = require('url');
-const { analyzePodcastDjStream, analyzePodcastDjIntro } = require('./dj-analyzer');
+const { analyzePodcastDjStream, analyzePodcastDjIntro } = require('./services/dj-analyzer');
 const { TrackDecryptor } = require('./qishui-audio-decryptor/track-decryptor');
 const {
   normalizeQQVipPayload: normalizeQQVipPayloadStrict,
@@ -71,7 +71,7 @@ const {
   qqVipEntitlementRights,
   preserveQQVipStalePositive,
   qqVipObjectLooksExpired: qqVipObjectLooksExpiredStrict,
-} = require('./qq-vip-api');
+} = require('./services/qq-vip-api');
 const {
   handleKugouSearch,
   handleKugouSongUrl,
@@ -88,7 +88,9 @@ const {
   kugouCookieHasPlayback,
   extractKugouAuth,
   kugouAudioReferer,
-} = require('./kugou-api');
+} = require('./services/kugou-api');
+const { handleLxSearch } = require('./services/lx-music-search');
+const { getSongListTags, getSongListSquare, searchSongList, getSongListDetail, getSongListDetailSliced, songListSourceFromUrl, importSongListFromShare } = require('./services/lx-music-songlist');
 const {
   getQishuiStatus,
   handleQishuiStatus,
@@ -99,6 +101,9 @@ const {
   handleQishuiFeed,
   handleQishuiUserPlaylists,
   handleQishuiPlaylistTracks,
+  handleQishuiPlaylistFromShare,
+  resolveQishuiSharePlaylistId,
+  fetchTextFollowRedirects,
   handleQishuiCheckTracksLiked,
   handleQishuiSetTrackLiked,
   handleQishuiSetPlaylistCollected,
@@ -109,8 +114,8 @@ const {
   handleQishuiCreateComment,
   handleQishuiLyric,
   handleQishuiSongUrl,
-} = require('./qishui-api');
-const qishuiQrLogin = require('./qishui-qr-login');
+} = require('./services/qishui-api');
+const qishuiQrLogin = require('./services/qishui-qr-login');
 const {
   getSpotifyConfig,
   clearSpotifyToken,
@@ -127,7 +132,7 @@ const {
   handleSpotifyCreatePlaylist,
   handleSpotifySongUrl,
   handleSpotifyLyric,
-} = require('./spotify-api');
+} = require('./services/spotify-api');
 const {
   appendCuefieldFeedback,
   readCuefieldFeedbackStats,
@@ -136,6 +141,8 @@ const { planCuefieldTransitionFromCache } = require('./cuefield/mineradio-bridge
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+// 歌单分享链接里已含歌单 ID 的特征 (有则无需跟随短链重定向)
+const SHARE_URL_HAS_ID_RE = /(?:[?&](?:id|playlistId)=\d+|\/playlist(?:_detail)?\/\d+|\/playsquare\/\d+|\/special\/single\/\d+|global_collection_id=|\/\d+\.html)/i;
 const LOGIN_EASTER_EGG_GATE_FILE = String(process.env.MINERADIO_LOGIN_EASTER_EGG_GATE_FILE || '');
 const LOGIN_EASTER_EGG_GATE_VERSION = String(process.env.MINERADIO_LOGIN_EASTER_EGG_GATE_VERSION || 'world-peace-v1');
 const LOGIN_EASTER_EGG_PROTECTED_ROUTES = new Set([
@@ -154,21 +161,16 @@ const DEFAULT_COOKIE_FILE = path.join(__dirname, '.cookie');
 const DEFAULT_QQ_COOKIE_FILE = path.join(__dirname, '.qq-cookie');
 const DEFAULT_KUGOU_COOKIE_FILE = path.join(__dirname, '.kugou-cookie');
 const DEFAULT_QISHUI_COOKIE_FILE = path.join(__dirname, '.qishui-cookie');
-const BEATMAP_CACHE_DIR = process.env.MINERADIO_BEAT_CACHE_DIR || 'D:\\MineradioCache\\beatmaps';
+const BEATMAP_CACHE_DIR = process.env.MINERADIO_BEAT_CACHE_DIR || 'D:\\AuroradioCache\\beatmaps';
 const CUEFIELD_FEEDBACK_FILE = process.env.CUEFIELD_FEEDBACK_FILE || path.join(__dirname, 'data', 'cuefield-feedback.jsonl');
 const LISTEN_SYNC_JOURNAL_FILE = process.env.MINERADIO_LISTEN_SYNC_FILE || path.join(__dirname, 'data', 'listen-sync-journal.json');
 const LISTEN_SYNC_JOURNAL_LIMIT = 600;
 const APP_PACKAGE = readPackageInfo();
 const APP_VERSION = process.env.MINERADIO_VERSION || APP_PACKAGE.version || '2.1.0';
-const UPDATE_CONFIG = readUpdateConfig(APP_PACKAGE);
 const qishuiAudioDecryptor = new TrackDecryptor();
 const qishuiAudioDecryptCache = new Map();
 const QISHUI_AUDIO_DECRYPT_CACHE_MAX_BYTES = 96 * 1024 * 1024;
 let qishuiAudioDecryptCacheBytes = 0;
-const UPDATE_FALLBACK_NOTES = [
-  '修复多行歌词与 3D 歌单架的显示层级',
-  '优化更新入口与安装包获取流程',
-];
 const OPEN_METEO_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const OPEN_METEO_GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const WEATHER_IP_LOCATION_URL = 'http://ip-api.com/json/';
@@ -445,285 +447,6 @@ function readPackageInfo() {
     return {};
   }
 }
-function parseGitHubRepository(input) {
-  const raw = String(input || '').trim();
-  if (!raw) return null;
-  const direct = raw.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
-  if (direct) return { owner: direct[1], repo: direct[2].replace(/\.git$/i, '') };
-  const github = raw.match(/github\.com[:/]([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:[#/?].*)?$/i);
-  if (github) return { owner: github[1], repo: github[2].replace(/\.git$/i, '') };
-  return null;
-}
-function readUpdateConfig(pkg) {
-  const local = (pkg && pkg.mineradio && pkg.mineradio.update) || {};
-  const disabled = local.disabled === true || local.provider === 'none';
-  if (disabled) {
-    return {
-      provider: local.provider || 'none',
-      owner: '',
-      repo: '',
-      configured: false,
-      disabled: true,
-      preview: false,
-      preferMirrors: false,
-      mirrors: [],
-      manifest: '',
-    };
-  }
-  const repoHint = process.env.MINERADIO_UPDATE_REPOSITORY
-    || process.env.GITHUB_REPOSITORY
-    || local.repository
-    || local.github
-    || (pkg && pkg.repository && (pkg.repository.url || pkg.repository))
-    || '';
-  const parsed = parseGitHubRepository(repoHint) || {};
-  const owner = process.env.MINERADIO_UPDATE_OWNER || local.owner || parsed.owner || '';
-  const repo = process.env.MINERADIO_UPDATE_REPO || local.repo || parsed.repo || '';
-  return {
-    provider: local.provider || 'github',
-    owner,
-    repo,
-    configured: !!(owner && repo),
-    disabled: false,
-    preview: local.preview !== false,
-    preferMirrors: local.preferMirrors !== false,
-    mirrors: readUpdateMirrors(local),
-    manifest: process.env.MINERADIO_UPDATE_MANIFEST
-      || process.env.MINERADIO_UPDATE_MANIFEST_URL
-      || process.env.MINERADIO_UPDATE_MANIFEST_FILE
-      || '',
-  };
-}
-function parseUpdateMirrorList(value) {
-  if (Array.isArray(value)) return value;
-  return String(value || '').split(/[\n,;]/);
-}
-function readUpdateMirrors(local) {
-  const envMirrors = process.env.MINERADIO_UPDATE_MIRRORS || process.env.MINERADIO_UPDATE_MIRROR || '';
-  const raw = envMirrors
-    ? parseUpdateMirrorList(envMirrors)
-    : parseUpdateMirrorList(local.mirrors || local.downloadMirrors || []);
-  const seen = new Set();
-  const mirrors = [];
-  raw.forEach(item => {
-    const url = String(item || '').trim();
-    if (!/^https?:\/\//i.test(url)) return;
-    const key = url.replace(/\/+$/, '').toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    mirrors.push(url);
-  });
-  return mirrors.slice(0, 6);
-}
-function buildMirrorUrl(originalUrl, mirror) {
-  const source = String(originalUrl || '').trim();
-  const base = String(mirror || '').trim();
-  if (!/^https?:\/\//i.test(source) || !/^https?:\/\//i.test(base)) return '';
-  if (base.includes('{encodedUrl}')) return base.replace(/\{encodedUrl\}/g, encodeURIComponent(source));
-  if (base.includes('{url}')) return base.replace(/\{url\}/g, source);
-  return base.replace(/\/+$/, '/') + source;
-}
-function uniqueDownloadCandidates(urls, opts) {
-  opts = opts || {};
-  const directUrls = (Array.isArray(urls) ? urls : [urls])
-    .map(url => String(url || '').trim())
-    .filter(url => /^https?:\/\//i.test(url));
-  const directSet = new Set(directUrls.map(url => url.toLowerCase()));
-  const mirrors = opts.useMirrors === false ? [] : (UPDATE_CONFIG.mirrors || []);
-  const mirrored = [];
-  directUrls.forEach(source => {
-    mirrors.forEach((mirror, index) => {
-      const url = buildMirrorUrl(source, mirror);
-      if (url) mirrored.push({
-        url,
-        label: '国内加速线路 ' + (index + 1),
-        mirrored: true,
-      });
-    });
-  });
-  const direct = directUrls.map(url => ({
-    url,
-    label: directSet.has(url.toLowerCase()) ? 'GitHub 直连' : '下载线路',
-    mirrored: false,
-  }));
-  const ordered = UPDATE_CONFIG.preferMirrors === false ? direct.concat(mirrored) : mirrored.concat(direct);
-  const seen = new Set();
-  return ordered.filter(item => {
-    const key = item.url.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-function normalizeVersion(value) {
-  return String(value || '').trim().replace(/^v/i, '').replace(/[+].*$/, '').replace(/-.+$/, '');
-}
-function compareVersions(a, b) {
-  const aa = normalizeVersion(a).split('.').map(n => parseInt(n, 10) || 0);
-  const bb = normalizeVersion(b).split('.').map(n => parseInt(n, 10) || 0);
-  const len = Math.max(aa.length, bb.length, 3);
-  for (let i = 0; i < len; i++) {
-    const left = aa[i] || 0;
-    const right = bb[i] || 0;
-    if (left > right) return 1;
-    if (left < right) return -1;
-  }
-  return 0;
-}
-function cleanReleaseLine(line) {
-  return String(line || '')
-    .replace(/^\s*#{1,6}\s*/, '')
-    .replace(/^\s*[-*]\s+/, '')
-    .replace(/^\s*\d+[.)]\s+/, '')
-    .replace(/\*\*/g, '')
-    .replace(/`/g, '')
-    .trim();
-}
-function extractReleaseNotes(body) {
-  const notes = [];
-  String(body || '').split(/\r?\n/).forEach(line => {
-    if (/<!--[\s\S]*?-->/i.test(line)) return;
-    const text = cleanReleaseLine(line);
-    if (!text) return;
-    if (/^(what'?s changed|changes|changelog|full changelog|更新日志)$/i.test(text)) return;
-    if (/https?:\/\//i.test(text)) return;
-    if (/^(下载|网盘|夸克盘|百度(?:云|网盘)|蓝奏(?:云|网盘)|安装包)/i.test(text)) return;
-    if (text.length > 72) return;
-    notes.push(text);
-  });
-  return notes.slice(0, 4);
-}
-function safeExternalUpdateUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw || raw.length > 2048) return '';
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== 'https:') return '';
-    return parsed.toString();
-  } catch (_) {
-    return '';
-  }
-}
-function normalizeUpdateDownloadPages(values, fallbackLabel) {
-  const source = Array.isArray(values) ? values : (values ? [values] : []);
-  const seen = new Set();
-  const pages = [];
-  source.forEach((value, index) => {
-    const item = value && typeof value === 'object' ? value : { url: value };
-    const url = safeExternalUpdateUrl(item.url || item.href || item.downloadPageUrl || item.externalUrl || '');
-    if (!url || seen.has(url)) return;
-    const label = cleanReleaseLine(item.label || item.name || fallbackLabel || `下载线路 ${index + 1}`)
-      .replace(/[<>|]/g, '')
-      .slice(0, 24)
-      .trim() || `下载线路 ${index + 1}`;
-    seen.add(url);
-    pages.push({ label, url });
-  });
-  return pages.slice(0, 6);
-}
-function extractReleaseDownloadPages(body) {
-  const raw = String(body || '');
-  const pages = [];
-  const hiddenPattern = /<!--\s*mineradio-download-page\s*:\s*(?:([^|<>\r\n]{1,32})\s*\|\s*)?(https:\/\/[^\s<>]+)\s*-->/gi;
-  let hidden = null;
-  while ((hidden = hiddenPattern.exec(raw))) {
-    pages.push({
-      label: String(hidden[1] || '').trim(),
-      url: hidden[2],
-    });
-  }
-  if (pages.length) return normalizeUpdateDownloadPages(pages);
-  const visiblePattern = /^\s*[-*]?\s*(夸克盘|百度(?:云|网盘)|蓝奏(?:云|网盘)|网盘|下载(?:地址|页面|链接)?)\s*[:：]\s*(?:\[[^\]]*]\()?(https:\/\/[^\s<>)\]]+)/gmi;
-  let visible = null;
-  while ((visible = visiblePattern.exec(raw))) {
-    pages.push({ label: visible[1], url: visible[2] });
-  }
-  return normalizeUpdateDownloadPages(pages);
-}
-function extractReleaseDownloadPage(body) {
-  const pages = extractReleaseDownloadPages(body);
-  return pages.length ? pages[0].url : '';
-}
-function normalizeManifestUpdateInfo(data) {
-  data = data || {};
-  const release = data.release || {};
-  const latestVersion = normalizeVersion(
-    data.latestVersion
-    || data.version
-    || release.version
-    || release.tagName
-    || release.tag_name
-    || release.name
-    || APP_VERSION
-  ) || APP_VERSION;
-  const htmlUrl = safeExternalUpdateUrl(release.htmlUrl || release.html_url || data.htmlUrl || '');
-  const legacyExternalUrl = safeExternalUpdateUrl(
-    release.downloadPageUrl
-    || release.externalUrl
-    || data.downloadPageUrl
-    || data.externalUrl
-    || release.downloadUrl
-    || data.downloadUrl
-    || ''
-  );
-  const downloadPages = normalizeUpdateDownloadPages(
-    release.downloadPages || data.downloadPages || [],
-    '网盘下载'
-  );
-  if (legacyExternalUrl && !downloadPages.some(page => page.url === legacyExternalUrl)) {
-    downloadPages.unshift({ label: '网盘下载', url: legacyExternalUrl });
-  }
-  const externalUrl = downloadPages.length ? downloadPages[0].url : legacyExternalUrl;
-  const downloadPageUrl = externalUrl || htmlUrl;
-  const notes = Array.isArray(release.notes) && release.notes.length
-    ? release.notes.slice(0, 4).map(cleanReleaseLine).filter(Boolean)
-    : (extractReleaseNotes(release.body || data.body).length ? extractReleaseNotes(release.body || data.body) : UPDATE_FALLBACK_NOTES);
-  return {
-    configured: true,
-    preview: false,
-    updateAvailable: data.updateAvailable != null ? !!data.updateAvailable : compareVersions(latestVersion, APP_VERSION) > 0,
-    currentVersion: APP_VERSION,
-    latestVersion,
-    release: {
-      tagName: release.tagName || release.tag_name || data.tagName || ('v' + latestVersion),
-      name: release.name || data.name || ('Mineradio v' + latestVersion),
-      version: latestVersion,
-      publishedAt: release.publishedAt || release.published_at || data.publishedAt || '',
-      htmlUrl,
-      externalUrl,
-      downloadPageUrl,
-      downloadPages,
-      downloadUrl: externalUrl,
-      asset: null,
-      patch: null,
-      patchAvailable: false,
-      summary: release.summary || data.summary || notes[0] || '发现新版本，建议更新。',
-      notes,
-    },
-    source: 'manifest',
-  };
-}
-async function readUpdateManifest(ref) {
-  const value = String(ref || '').trim();
-  if (!value) throw new Error('UPDATE_MANIFEST_MISSING');
-  if (/^https?:\/\//i.test(value)) {
-    const resp = await fetch(value, {
-      headers: { 'User-Agent': `Mineradio/${APP_VERSION}` },
-    });
-    if (!resp.ok) throw new Error('Update manifest ' + resp.status);
-    return resp.json();
-  }
-  const file = /^file:/i.test(value) ? fileURLToPath(value) : path.resolve(value);
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
-}
-async function fetchManifestUpdateInfo(ref) {
-  try {
-    const data = await readUpdateManifest(ref);
-    return normalizeManifestUpdateInfo(data);
-  } catch (err) {
-    return localUpdateFallback(err.message || 'Update manifest failed', { configured: true });
-  }
-}
 function beatCacheRootInfo() {
   const dir = path.resolve(BEATMAP_CACHE_DIR);
   const root = path.parse(dir).root;
@@ -789,68 +512,6 @@ function writeBeatMapCache(body) {
   fs.renameSync(tmp, file);
   return { ok: true, key: payload.key, savedAt: payload.savedAt, dir: path.dirname(file) };
 }
-function localUpdateFallback(reason, opts) {
-  opts = opts || {};
-  const configured = !!(opts.configured != null ? opts.configured : false);
-  return {
-    configured,
-    preview: UPDATE_CONFIG.preview,
-    updateAvailable: false,
-    currentVersion: APP_VERSION,
-    latestVersion: APP_VERSION,
-    release: {
-      tagName: 'v' + APP_VERSION,
-      name: 'Mineradio v' + APP_VERSION,
-      version: APP_VERSION,
-      htmlUrl: '',
-      externalUrl: '',
-      downloadPageUrl: '',
-      downloadPages: [],
-      downloadUrl: '',
-      asset: null,
-      patch: null,
-      patchAvailable: false,
-      summary: '当前版本，更新检测已就绪。',
-      notes: UPDATE_FALLBACK_NOTES,
-    },
-    reason: reason || '',
-  };
-}
-function updateError(code, message, cause) {
-  const err = new Error(message || code);
-  err.code = code;
-  if (cause) err.cause = cause;
-  return err;
-}
-function classifyUpdateError(err) {
-  const code = String(err && err.code || '').trim();
-  const message = String(err && err.message || err || '').trim();
-  const detail = message || code || '未知错误';
-  if (/HASH|DIGEST|CHECKSUM/i.test(code + ' ' + message)) {
-    return { code: code || 'UPDATE_HASH_MISMATCH', reason: '文件校验失败，可能是线路缓存异常，已拦截该安装包。', detail };
-  }
-  if (/SIZE_MISMATCH|content length/i.test(code + ' ' + message)) {
-    return { code: code || 'UPDATE_SIZE_MISMATCH', reason: '下载文件大小不一致，可能是网络中断或线路缓存不完整。', detail };
-  }
-  if (/AbortError|TIMEOUT|ETIMEDOUT|timeout/i.test(code + ' ' + message)) {
-    return { code: code || 'UPDATE_TIMEOUT', reason: '连接超时，当前网络到更新线路不稳定。', detail };
-  }
-  if (/ENOTFOUND|EAI_AGAIN|DNS|fetch failed|getaddrinfo/i.test(code + ' ' + message)) {
-    return { code: code || 'UPDATE_DNS_FAILED', reason: '域名解析失败，可能是当前网络无法连接该更新线路。', detail };
-  }
-  if (/ECONNRESET|ECONNREFUSED|socket|network/i.test(code + ' ' + message)) {
-    return { code: code || 'UPDATE_NETWORK_FAILED', reason: '网络连接被中断，已尝试切换更新线路。', detail };
-  }
-  const http = message.match(/\bHTTP[_\s-]?(\d{3})\b/i) || message.match(/\b(\d{3})\b/);
-  if (http) {
-    const status = Number(http[1]);
-    if (status === 403) return { code: code || 'UPDATE_HTTP_403', reason: '更新线路返回 403，可能被限流或拦截。', detail };
-    if (status === 404) return { code: code || 'UPDATE_HTTP_404', reason: '更新文件不存在，可能 release 资源还没有同步完成。', detail };
-    if (status >= 500) return { code: code || 'UPDATE_HTTP_5XX', reason: '更新线路服务器异常，请稍后重试。', detail };
-    return { code: code || ('UPDATE_HTTP_' + status), reason: '更新线路返回 HTTP ' + status + '。', detail };
-  }
-  return { code: code || 'UPDATE_FAILED', reason: '更新失败：' + detail, detail };
-}
 async function fetchWithTimeout(url, opts, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs || 12000);
@@ -890,123 +551,6 @@ async function readStreamChunkWithTimeout(reader, timeoutMs) {
     ]);
   } finally {
     if (timer) clearTimeout(timer);
-  }
-}
-async function fetchTextFromCandidates(candidates, timeoutMs) {
-  const list = Array.isArray(candidates) && candidates.length ? candidates : [];
-  const failures = [];
-  for (let i = 0; i < list.length; i++) {
-    const candidate = list[i];
-    try {
-      const resp = await fetchWithTimeout(candidate.url, {
-        headers: { 'User-Agent': `Mineradio/${APP_VERSION}` },
-      }, timeoutMs || 6500);
-      if (!resp.ok) throw updateError('HTTP_' + resp.status, 'HTTP ' + resp.status);
-      return { text: await resp.text(), candidate };
-    } catch (err) {
-      const info = classifyUpdateError(err);
-      failures.push(candidate.label + ': ' + info.reason);
-    }
-  }
-  throw updateError('UPDATE_ALL_LINES_FAILED', failures.join('；') || 'All update lines failed');
-}
-function yamlScalar(text, key) {
-  const pattern = new RegExp('^\\s*' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*:\\s*(.+?)\\s*$', 'm');
-  const match = String(text || '').match(pattern);
-  if (!match) return '';
-  return match[1].trim().replace(/^['"]|['"]$/g, '');
-}
-function parseLatestYmlUpdateInfo(text, reason) {
-  const latestVersion = normalizeVersion(yamlScalar(text, 'version') || APP_VERSION) || APP_VERSION;
-  const releaseDate = yamlScalar(text, 'releaseDate');
-  const htmlUrl = `https://github.com/${UPDATE_CONFIG.owner}/${UPDATE_CONFIG.repo}/releases/tag/v${latestVersion}`;
-  return {
-    configured: true,
-    preview: false,
-    updateAvailable: compareVersions(latestVersion, APP_VERSION) > 0,
-    currentVersion: APP_VERSION,
-    latestVersion,
-    release: {
-      tagName: 'v' + latestVersion,
-      name: 'Mineradio v' + latestVersion,
-      version: latestVersion,
-      publishedAt: releaseDate,
-      htmlUrl,
-      externalUrl: '',
-      downloadPageUrl: htmlUrl,
-      downloadPages: [],
-      downloadUrl: '',
-      asset: null,
-      patch: null,
-      patchAvailable: false,
-      summary: '发现新版本，请前往发布页面获取安装包。',
-      notes: ['更新入口已改为浏览器外部下载', 'Mineradio 不再在本地下载或应用补丁'],
-    },
-    source: 'latest-yml',
-    reason: reason || '',
-  };
-}
-async function fetchLatestYmlUpdateInfo(reason) {
-  if (!UPDATE_CONFIG.configured || UPDATE_CONFIG.provider !== 'github') throw updateError('UPDATE_REPOSITORY_NOT_CONFIGURED');
-  const latestYmlUrl = `https://github.com/${encodeURIComponent(UPDATE_CONFIG.owner)}/${encodeURIComponent(UPDATE_CONFIG.repo)}/releases/latest/download/latest.yml`;
-  const candidates = uniqueDownloadCandidates(latestYmlUrl);
-  const result = await fetchTextFromCandidates(candidates, 6500);
-  return parseLatestYmlUpdateInfo(result.text, reason);
-}
-async function fetchLatestUpdateInfo() {
-  if (UPDATE_CONFIG.manifest) return fetchManifestUpdateInfo(UPDATE_CONFIG.manifest);
-  if (!UPDATE_CONFIG.configured || UPDATE_CONFIG.provider !== 'github') return localUpdateFallback();
-  const apiUrl = `https://api.github.com/repos/${encodeURIComponent(UPDATE_CONFIG.owner)}/${encodeURIComponent(UPDATE_CONFIG.repo)}/releases/latest`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8500);
-  try {
-    const resp = await fetch(apiUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': `Mineradio/${APP_VERSION}`,
-        'Accept': 'application/vnd.github+json',
-      },
-    });
-    if (!resp.ok) {
-      try { return await fetchLatestYmlUpdateInfo('GitHub Releases ' + resp.status); }
-      catch (_) { return localUpdateFallback('GitHub Releases ' + resp.status, { configured: true }); }
-    }
-    const data = await resp.json();
-    const latestVersion = normalizeVersion(data.tag_name || data.name || APP_VERSION) || APP_VERSION;
-    const htmlUrl = safeExternalUpdateUrl(data.html_url || '');
-    const downloadPages = extractReleaseDownloadPages(data.body);
-    const externalUrl = downloadPages.length ? downloadPages[0].url : '';
-    const downloadPageUrl = externalUrl || htmlUrl;
-    const notes = extractReleaseNotes(data.body).length ? extractReleaseNotes(data.body) : UPDATE_FALLBACK_NOTES;
-    return {
-      configured: true,
-      preview: false,
-      updateAvailable: compareVersions(latestVersion, APP_VERSION) > 0,
-      currentVersion: APP_VERSION,
-      latestVersion,
-      release: {
-        tagName: data.tag_name || ('v' + latestVersion),
-        name: data.name || ('Mineradio v' + latestVersion),
-        version: latestVersion,
-        publishedAt: data.published_at || '',
-        htmlUrl,
-        externalUrl,
-        downloadPageUrl,
-        downloadPages,
-        downloadUrl: externalUrl,
-        asset: null,
-        patch: null,
-        patchAvailable: false,
-        summary: notes[0] || '发现新版本，建议更新。',
-        notes,
-      },
-    };
-  } catch (err) {
-    const reason = err && err.message || 'Update check failed';
-    try { return await fetchLatestYmlUpdateInfo(reason); }
-    catch (fallbackErr) { return localUpdateFallback((fallbackErr && fallbackErr.message) || reason, { configured: true }); }
-  } finally {
-    clearTimeout(timer);
   }
 }
 function readRequestBody(req) {
@@ -4668,16 +4212,8 @@ const server = http.createServer(async (req, res) => {
   if (pn === '/api/app/version') {
     sendJSON(res, {
       name: APP_PACKAGE.name || 'mineradio',
-      productName: APP_PACKAGE.productName || 'Mineradio',
+      productName: APP_PACKAGE.productName || 'Auroradio',
       version: APP_VERSION,
-      update: {
-        provider: UPDATE_CONFIG.provider,
-        configured: UPDATE_CONFIG.configured,
-        owner: UPDATE_CONFIG.owner,
-        repo: UPDATE_CONFIG.repo,
-        preview: UPDATE_CONFIG.preview,
-        manifestOverride: !!UPDATE_CONFIG.manifest,
-      },
     });
     return;
   }
@@ -4762,33 +4298,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (pn === '/api/update/latest') {
-    try {
-      sendJSON(res, await fetchLatestUpdateInfo());
-    } catch (err) {
-      sendJSON(res, {
-        ...localUpdateFallback(err.message || 'Update check failed', { configured: UPDATE_CONFIG.configured }),
-        error: err.message || 'Update check failed',
-      });
-    }
-    return;
-  }
-
-  if (
-    pn === '/api/update/download'
-    || pn === '/api/update/download/status'
-    || pn === '/api/update/patch'
-    || pn === '/api/update/patch/status'
-  ) {
-    sendJSON(res, {
-      ok: false,
-      externalOnly: true,
-      error: 'UPDATE_EXTERNAL_ONLY',
-      message: 'Mineradio 已停用客户端本地下载与快速补丁，请使用外部下载页面。',
-    }, 410);
-    return;
-  }
-
   if (pn === '/api/beatmap/cache/status') {
     const info = beatCacheRootInfo();
     sendJSON(res, {
@@ -4801,7 +4310,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Cuefield only consumes Mineradio's existing local beat-map cache. It never
+  // Cuefield only consumes Auroradio's existing local beat-map cache. It never
   // receives account cookies, song files, or playback URLs on this route.
   if (pn === '/api/cuefield/transition') {
     if (req.method !== 'POST') {
@@ -4830,7 +4339,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Feedback remains on this computer under Electron userData. The fan project's
-  // optional remote-feedback module is intentionally not wired into Mineradio.
+  // optional remote-feedback module is intentionally not wired into Auroradio.
   if (pn === '/api/cuefield/feedback') {
     if (req.method === 'GET') {
       try {
@@ -5400,6 +4909,69 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error('[QishuiUserPlaylists]', err);
       sendJSON(res, { provider: 'qishui', loggedIn: getQishuiStatus(qishuiCookie).configured, configured: getQishuiStatus(qishuiCookie).configured, error: err.message, playlists: [] }, 500);
+    }
+    return;
+  }
+
+  // 统一歌单分享链接导入: 按链接域名分发到汽水 / wy / tx / kg / kw / mg
+  if (pn === '/api/playlist/from-share') {
+    try {
+      const text = String(url.searchParams.get('text') || url.searchParams.get('url') || '').trim();
+      const urlMatch = text.match(/https?:\/\/[^\s"'<>「」【】]+/i);
+      const bareQishuiId = /playlist_id=/i.test(text) || /^[0-9]{15,25}$/.test(text);
+      if (!urlMatch && !bareQishuiId) {
+        sendJSON(res, { success: false, error: 'NO_SHARE_LINK', message: '未在输入中找到歌单分享链接' }, 400);
+        return;
+      }
+      const sendQishui = async () => {
+        const playlistId = await resolveQishuiSharePlaylistId(text);
+        if (!playlistId) {
+          sendJSON(res, { success: false, error: 'NO_SHARE_LINK', message: '未在输入中找到汽水歌单分享链接或歌单 ID' }, 400);
+          return;
+        }
+        sendJSON(res, await handleQishuiPlaylistFromShare(playlistId, qishuiCookie));
+      };
+      const rawUrl = urlMatch ? urlMatch[0] : '';
+      if (!rawUrl || bareQishuiId || /douyin\.com|\/qishui\//i.test(rawUrl)) {
+        await sendQishui();
+        return;
+      }
+      // 链接自带 ID 时直接用 (咪咕等平台的 301 会丢弃 query); 仅纯短链才跟随重定向
+      let target = rawUrl;
+      if (!SHARE_URL_HAS_ID_RE.test(target)) {
+        try {
+          target = (await fetchTextFollowRedirects(target, { timeoutMs: 12000 })).url || target;
+        } catch (e) { /* 重定向解析失败不阻断, 用原链接继续识别 */ }
+        if (/douyin\.com|\/qishui\//i.test(target)) {
+          await sendQishui();
+          return;
+        }
+      }
+      const source = songListSourceFromUrl(rawUrl) || songListSourceFromUrl(target);
+      if (!source) {
+        sendJSON(res, { success: false, error: 'UNKNOWN_PLATFORM', message: '未识别的歌单平台，支持：汽水 / 网易云 / QQ音乐 / 酷狗 / 酷我 / 咪咕 歌单分享链接' }, 400);
+        return;
+      }
+      sendJSON(res, await importSongListFromShare({ source, id: target }));
+    } catch (err) {
+      console.error('[PlaylistShareImport]', err);
+      sendJSON(res, { success: false, error: err.code || 'PLAYLIST_SHARE_IMPORT_FAILED', message: '解析歌单分享链接失败: ' + (err.message || '未知错误') }, 500);
+    }
+    return;
+  }
+
+  if (pn === '/api/qishui/playlist/from-share') {
+    try {
+      const text = String(url.searchParams.get('text') || url.searchParams.get('url') || '');
+      const playlistId = await resolveQishuiSharePlaylistId(text);
+      if (!playlistId) {
+        sendJSON(res, { success: false, error: 'NO_SHARE_LINK', message: '未在输入中找到汽水歌单分享链接或歌单 ID' }, 400);
+        return;
+      }
+      sendJSON(res, await handleQishuiPlaylistFromShare(playlistId, qishuiCookie));
+    } catch (err) {
+      console.error('[QishuiShareImport]', err);
+      sendJSON(res, { success: false, error: err.message || 'QISHUI_SHARE_IMPORT_FAILED', message: '解析汽水歌单分享链接失败: ' + (err.message || '未知错误') }, 500);
     }
     return;
   }
@@ -6688,6 +6260,180 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ===== 落雪免登录聚合搜索 (五平台, lx-music-search.js) =====
+  if (pn === '/api/lx/search') {
+    try {
+      sendJSON(res, await handleLxSearch({
+        source: url.searchParams.get('source') || 'all',
+        keywords: url.searchParams.get('keywords') || '',
+        offset: Number(url.searchParams.get('offset')) || 0,
+        limit: Number(url.searchParams.get('limit')) || 30,
+      }));
+    } catch (err) {
+      console.error('[LxSearch]', err);
+      sendJSON(res, { provider: 'lx', songs: [], error: err.message || '搜索失败' }, 500);
+    }
+    return;
+  }
+
+  // ===== 落雪在线歌单 (广场 / 搜索 / 详情) =====
+  if (pn.startsWith('/api/lx/songlist/')) {
+    try {
+      if (pn === '/api/lx/songlist/tags') {
+        sendJSON(res, Object.assign({ success: true }, await getSongListTags({ source: url.searchParams.get('source') || 'wy' })));
+      } else if (pn === '/api/lx/songlist/square') {
+        sendJSON(res, Object.assign({ success: true }, await getSongListSquare({
+          source: url.searchParams.get('source') || 'wy',
+          tagId: url.searchParams.get('tagId') || '',
+          sortId: url.searchParams.get('sortId') || '',
+          page: Number(url.searchParams.get('page')) || 1,
+        })));
+      } else if (pn === '/api/lx/songlist/search') {
+        sendJSON(res, Object.assign({ success: true }, await searchSongList({
+          source: url.searchParams.get('source') || 'all',
+          keywords: url.searchParams.get('keywords') || '',
+          page: Number(url.searchParams.get('page')) || 1,
+          limit: Number(url.searchParams.get('limit')) || 15,
+        })));
+      } else if (pn === '/api/lx/songlist/detail') {
+        const offsetParam = url.searchParams.get('offset');
+        if (offsetParam != null) {
+          // offset/limit 模式: 播放队列流式补全
+          sendJSON(res, Object.assign({ success: true }, await getSongListDetailSliced({
+            source: url.searchParams.get('source') || 'wy',
+            id: url.searchParams.get('id') || '',
+            offset: Number(offsetParam) || 0,
+            limit: Number(url.searchParams.get('limit')) || 50,
+          })));
+        } else {
+          sendJSON(res, Object.assign({ success: true }, await getSongListDetail({
+            source: url.searchParams.get('source') || 'wy',
+            id: url.searchParams.get('id') || '',
+            page: Number(url.searchParams.get('page')) || 1,
+          })));
+        }
+      } else {
+        sendJSON(res, { error: 'Unknown songlist endpoint' }, 404);
+      }
+    } catch (err) {
+      console.error('[LxSongList]', pn, err);
+      sendJSON(res, { success: false, error: err.message || '获取失败' }, 500);
+    }
+    return;
+  }
+
+  // ===== lx 自定义音源 (落雪音乐音源脚本, host 由 desktop/main.js 注入) =====
+  if (pn.startsWith('/api/lxsource/')) {
+    if (!lxSourceHost) {
+      sendJSON(res, { available: false, active: false, status: false, scripts: [], activeId: '', sources: {} });
+      return;
+    }
+    if (pn === '/api/lxsource/status') {
+      sendJSON(res, Object.assign({ available: true }, lxSourceHost.getLxSourceStatus()));
+      return;
+    }
+    if (pn === '/api/lxsource/list') {
+      sendJSON(res, Object.assign({ available: true }, lxSourceHost.getLxScriptList()));
+      return;
+    }
+    if (pn === '/api/lxsource/import') {
+      try {
+        const body = req.method === 'POST' ? await readRequestBody(req) : {};
+        const script = String(body.script || '');
+        if (!script) { sendJSON(res, { success: false, error: 'Missing script' }, 400); return; }
+        const info = lxSourceHost.importLxScript(script);
+        sendJSON(res, Object.assign({ available: true, success: true, script: info }, lxSourceHost.getLxScriptList()));
+      } catch (err) {
+        console.error('[LxSourceImport]', err);
+        sendJSON(res, { success: false, error: err.message || '导入失败' }, 500);
+      }
+      return;
+    }
+    if (pn === '/api/lxsource/remove') {
+      try {
+        const body = req.method === 'POST' ? await readRequestBody(req) : {};
+        const id = String(body.id || url.searchParams.get('id') || '');
+        if (!id) { sendJSON(res, { success: false, error: 'Missing id' }, 400); return; }
+        lxSourceHost.removeLxScript(id);
+        sendJSON(res, Object.assign({ available: true, success: true }, lxSourceHost.getLxScriptList()));
+      } catch (err) {
+        sendJSON(res, { success: false, error: err.message }, 500);
+      }
+      return;
+    }
+    if (pn === '/api/lxsource/activate') {
+      try {
+        const body = req.method === 'POST' ? await readRequestBody(req) : {};
+        const id = String(body.id || url.searchParams.get('id') || '');
+        // enabled 字段存在 → 单脚本启用/停用; 否则保持旧行为 (仅启用该脚本)
+        if (typeof body.enabled === 'boolean' && id) {
+          await lxSourceHost.setLxScriptEnabled(id, body.enabled);
+        } else {
+          await lxSourceHost.setActiveLxScript(id);
+        }
+        sendJSON(res, Object.assign({ available: true, success: true }, lxSourceHost.getLxSourceStatus(), lxSourceHost.getLxScriptList()));
+      } catch (err) {
+        console.error('[LxSourceActivate]', err);
+        sendJSON(res, { success: false, error: err.message }, 500);
+      }
+      return;
+    }
+    if (pn === '/api/lxsource/song/url') {
+      try {
+        const source = String(url.searchParams.get('source') || '');
+        const quality = String(url.searchParams.get('quality') || '128k');
+        // 组装 lx 旧版 musicInfo (对齐 lx toOldMusicInfo 映射)
+        const musicInfo = {
+          name: url.searchParams.get('name') || '',
+          singer: url.searchParams.get('singer') || '',
+          source,
+          songmid: url.searchParams.get('songmid') || '',
+          interval: url.searchParams.get('interval') || '',
+          albumName: url.searchParams.get('album') || '',
+          img: url.searchParams.get('img') || '',
+          typeUrl: {},
+          albumId: url.searchParams.get('albumId') || '',
+          types: [],
+          _types: {},
+        };
+        if (source === 'kg') {
+          musicInfo.hash = url.searchParams.get('hash') || musicInfo.songmid;
+        } else if (source === 'tx') {
+          musicInfo.strMediaMid = url.searchParams.get('mediaMid') || '';
+          musicInfo.albumMid = url.searchParams.get('albumMid') || '';
+          musicInfo.songId = musicInfo.songmid;
+        } else if (source === 'mg') {
+          musicInfo.copyrightId = url.searchParams.get('copyrightId') || '';
+          musicInfo.songId = musicInfo.songmid;
+        }
+        if (!source || !musicInfo.songmid) { sendJSON(res, { provider: 'lx', url: '', playable: false, error: 'Missing source/songmid' }, 400); return; }
+        // 支持逗号分隔多音质: 全脚本全档位并行竞速, 取可用最高音质; scriptId 可指定单个脚本 (诊断/测试用)
+        const qualityList = quality.split(',').map((q) => q.trim()).filter(Boolean);
+        const result = await lxSourceHost.requestLxMusicUrlBest({
+          source,
+          qualityList: qualityList.length ? qualityList : [quality],
+          musicInfo,
+          preferredId: url.searchParams.get('scriptId') || '',
+        });
+        sendJSON(res, { provider: 'lx', source: 'lx', url: result.result.data.url, level: result.quality, type: result.quality, via: result.via, viaId: result.viaId, playable: true });
+      } catch (err) {
+        sendJSON(res, { provider: 'lx', url: '', playable: false, error: err.message || '解析失败' }, 500);
+      }
+      return;
+    }
+    if (pn === '/api/lxsource/import-lx-data') {
+      try {
+        sendJSON(res, await handleLxDataImport(url.searchParams.get('dir') || ''));
+      } catch (err) {
+        console.error('[LxDataImport]', err);
+        sendJSON(res, { success: false, error: err.message || '导入失败' }, 500);
+      }
+      return;
+    }
+    sendJSON(res, { error: 'Unknown lxsource endpoint' }, 404);
+    return;
+  }
+
   let filePath = pn === '/' ? '/index.html' : pn;
   filePath = path.join(__dirname, 'public', filePath);
   serveStatic(res, filePath);
@@ -6701,5 +6447,144 @@ server.listen(PORT, HOST, () => {
 });
 
 server.clearAllLoginCredentials = clearAllRuntimeLoginCredentials;
+
+// lx 自定义音源宿主注入 (desktop/main.js 启动时调用; 避免 server.js 直接依赖 electron)
+let lxSourceHost = null;
+function setLxSourceHost(host) {
+  lxSourceHost = host;
+}
+server.setLxSourceHost = setLxSourceHost;
+
+// ===== 落雪数据导入: 音源脚本 (user_api.json, gz_) + 歌单 (lx.data.db) =====
+function lxIntervalToMs(interval) {
+  const v = String(interval || '');
+  if (!v) return 0;
+  if (v.includes(':')) {
+    const parts = v.split(':').map(Number).reverse();
+    return parts.reduce((acc, p, i) => acc + (p || 0) * Math.pow(60, i), 0) * 1000;
+  }
+  const sec = Number(v);
+  return isFinite(sec) ? Math.round(sec * 1000) : 0;
+}
+
+// lx musicInfo → Auroradio 歌曲形状
+// tx/wy/kg → 原生平台歌曲 (可直接播放); kw/mg → provider:'lx' 由音源脚本解析
+function mapLxMusicInfoToSong(row) {
+  let meta = {};
+  try { meta = JSON.parse(row.meta || '{}'); } catch (_) { }
+  const base = {
+    name: row.name || '',
+    artist: row.singer || '',
+    album: meta.albumName || '',
+    cover: meta.picUrl || '',
+    duration: lxIntervalToMs(row.interval),
+  };
+  const source = String(row.source || '');
+  if (source === 'tx') {
+    return Object.assign({
+      provider: 'qq', source: 'qq', type: 'song',
+      id: String(meta.id || meta.songId || ''),
+      songmid: String(meta.songId || ''),
+      mid: String(meta.songId || ''),
+      mediaMid: meta.strMediaMid || '',
+      albumMid: meta.albumId || '',
+      playable: true,
+    }, base);
+  }
+  if (source === 'wy') {
+    return Object.assign({
+      provider: 'netease', source: 'netease', type: 'song',
+      id: String(meta.songId || ''),
+      songmid: String(meta.songId || ''),
+    }, base);
+  }
+  if (source === 'kg') {
+    const hash = meta.hash || '';
+    return Object.assign({
+      provider: 'kugou', source: 'kugou', type: 'song',
+      id: String(meta.songId || hash),
+      songmid: hash,
+      hash,
+    }, base);
+  }
+  const songmid = String(meta.songId || meta.copyrightId || '');
+  return Object.assign({
+    provider: 'lx', source: 'lx', type: 'song',
+    lxSource: source,
+    songmid,
+    id: 'lx_' + source + '_' + songmid,
+  }, base);
+}
+
+async function handleLxDataImport(customDir) {
+  const os = require('os');
+  const appDataDir = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  const candidates = [];
+  if (customDir) candidates.push(path.join(customDir, 'LxDatas'));
+  candidates.push(path.join(appDataDir, 'Electron', 'LxDatas'));            // dev 模式 userData
+  candidates.push(path.join(appDataDir, 'lx-music-desktop', 'LxDatas'));    // 安装版
+  const lxDir = candidates.find((dir) => fs.existsSync(dir));
+  if (!lxDir) throw new Error('未找到落雪音乐数据目录 (LxDatas)');
+
+  // 1) 音源脚本 (gz_ 解压后走同一导入通道, 重复脚本自动跳过)
+  const scriptsImported = [];
+  const scriptErrors = [];
+  const userApiPath = path.join(lxDir, 'user_api.json');
+  if (fs.existsSync(userApiPath) && lxSourceHost) {
+    const parsed = JSON.parse(fs.readFileSync(userApiPath, 'utf8'));
+    for (const api of (parsed.userApis || [])) {
+      try {
+        let scriptText = String(api.script || '');
+        if (scriptText.startsWith('gz_')) {
+          scriptText = zlib.inflateSync(Buffer.from(scriptText.slice(3), 'base64')).toString('utf8');
+        }
+        const info = lxSourceHost.importLxScript(scriptText);
+        scriptsImported.push(info.name);
+      } catch (err) {
+        scriptErrors.push((api.name || '未知脚本') + ': ' + err.message);
+      }
+    }
+  }
+
+  // 2) 歌单 (node:sqlite 只读)
+  const lists = [];
+  const dbPath = path.join(lxDir, 'lx.data.db');
+  if (fs.existsSync(dbPath)) {
+    const { DatabaseSync } = require('node:sqlite');
+    let db;
+    try {
+      db = new DatabaseSync(dbPath, { readOnly: true });
+      const listMeta = db.prepare('SELECT id, name FROM my_list').all();
+      const songRows = db.prepare('SELECT m.listId, m.name, m.singer, m.source, m.interval, m.meta, o."order" AS orderIndex FROM my_list_music_info m LEFT JOIN my_list_music_info_order o ON o.musicInfoId = m.id AND o.listId = m.listId').all();
+      const groups = {};
+      for (const row of songRows) {
+        const key = String(row.listId || 'default');
+        (groups[key] = groups[key] || []).push(row);
+      }
+      const FALLBACK_NAMES = { default: '默认列表', love: '我喜欢', temp: '临时列表', download: '下载列表' };
+      for (const key of Object.keys(groups)) {
+        const meta = listMeta.find((l) => String(l.id) === key);
+        const rawName = (meta && meta.name) || FALLBACK_NAMES[key] || key;
+        lists.push({
+          name: '落雪·' + rawName,
+          items: groups[key]
+            .sort((a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0))
+            .map(mapLxMusicInfoToSong)
+            .filter((s) => s.name && s.songmid !== 'undefined'),
+        });
+      }
+    } finally {
+      try { db && db.close(); } catch (_) { }
+    }
+  }
+
+  return {
+    success: true,
+    dir: lxDir,
+    scripts: scriptsImported,
+    scriptErrors,
+    lists,
+  };
+}
 
 module.exports = server;

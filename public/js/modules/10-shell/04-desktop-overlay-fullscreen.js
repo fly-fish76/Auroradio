@@ -367,7 +367,7 @@ function updateDesktopModeControl(status) {
     softwareLockButton.setAttribute('aria-checked', softwareLocked ? 'true' : 'false');
     softwareLockButton.setAttribute('aria-busy', desktopSoftwareLockPending ? 'true' : 'false');
     softwareLockButton.disabled = desktopSoftwareLockPending || !active || !softwareLockSupported;
-    softwareLockButton.title = softwareLocked ? '恢复 Mineradio 操作' : '暂时把操作交给 Windows 桌面';
+    softwareLockButton.title = softwareLocked ? '恢复 Auroradio 操作' : '暂时把操作交给 Windows 桌面';
   }
   if (softwareLockState) softwareLockState.textContent = softwareLocked ? '软件操作已锁定，可在此解锁' : '软件可正常操作';
   if (document.body) document.body.classList.toggle('desktop-software-locked', active && softwareLocked);
@@ -907,7 +907,7 @@ function currentDesktopSongMeta() {
   var song = playQueue && currentIdx >= 0 ? playQueue[currentIdx] : null;
   song = song || currentLyricSong && currentLyricSong() || {};
   return {
-    title: song.name || song.title || 'Mineradio',
+    title: song.name || song.title || 'Auroradio',
     artist: song.artist || song.ar || song.author || '',
     cover: (typeof songCoverSrc === 'function' && song) ? (songCoverSrc(song, 360) || song.cover || '') : (song.cover || '')
   };
@@ -954,7 +954,7 @@ function currentDesktopLyricSnapshot() {
       progressSpan: 4.8
     };
   }
-  return { text: normalizeDesktopLyricText(currentDesktopSongMeta().title || 'Mineradio'), progress: 0, progressSpan: 4.8 };
+  return { text: normalizeDesktopLyricText(currentDesktopSongMeta().title || 'Auroradio'), progress: 0, progressSpan: 4.8 };
 }
 function desktopOverlayColorValue(value, fallback) {
   var raw = String(value || '').trim();
@@ -1109,7 +1109,7 @@ function updateDesktopWallpaperRuntimeControls(status) {
     else toggle.removeAttribute('aria-disabled');
     toggle.title = !supported
       ? '当前系统不支持完整桌面模式'
-      : (attaching ? '正在切换完整桌面模式' : '把完整 Mineradio 放到 Windows 桌面；右上角控制器可显示或隐藏桌面图标，Esc 退出');
+      : (attaching ? '正在切换完整桌面模式' : '把完整 Auroradio 放到 Windows 桌面；右上角控制器可显示或隐藏桌面图标，Esc 退出');
   }
   var opacity = document.getElementById('fx-wallpaperopacity');
   if (opacity) opacity.disabled = !supported;
@@ -1247,7 +1247,7 @@ function revealDesktopWallpaperUiOnActivation(enabled, interactive) {
   var body = document.body;
   if (body) body.classList.add('desktop-wallpaper-hud-prime');
 
-  // Full desktop mode is the complete Mineradio workspace. Do not inherit the
+  // Full desktop mode is the complete Auroradio workspace. Do not inherit the
   // ordinary stage's immersive chrome suppression, which otherwise leaves only
   // the desktop-mode hotspot visible after the native attach finishes.
   if (typeof immersiveMode !== 'undefined' && immersiveMode

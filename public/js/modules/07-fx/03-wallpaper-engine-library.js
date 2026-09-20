@@ -59,7 +59,7 @@ function cancelWallpaperEnginePointerActivity() {
 function wallpaperEnginePointerActivityReady() {
   // A native WE source is briefly aligned over the Electron host while the
   // capture stream is prepared. Chromium can keep Page Visibility hidden
-  // after that source is parked even though the real Mineradio window is
+  // after that source is parked even though the real Auroradio window is
   // visible. Desktop sessions therefore trust the main-process window state;
   // browser fallback still resolves to document.hidden.
   if (!wallpaperEngineDesktopHostIsVisible()
@@ -1327,15 +1327,15 @@ function wallpaperEnginePlayWasInterrupted(error) {
 
 function wallpaperEngineRuntimeErrorText(error) {
   var code = String(error && (error.code || error.message) || error || '');
-  if (/WALLPAPER_ENGINE_HOST_ELEVATED/.test(code)) return 'Mineradio 正以管理员身份运行，无法捕获 WE 实时窗口；请取消“以管理员身份运行”后重启播放器';
+  if (/WALLPAPER_ENGINE_HOST_ELEVATED/.test(code)) return 'Auroradio 正以管理员身份运行，无法捕获 WE 实时窗口；请取消“以管理员身份运行”后重启播放器';
   if (/WALLPAPER_ENGINE_NOT_INSTALLED/.test(code)) return '未找到 Wallpaper Engine 本体';
   if (/WALLPAPER_ENGINE_SIGNATURE_INVALID/.test(code)) return 'Wallpaper Engine 运行时签名无效';
-  if (/WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED/.test(code)) return '上一次 Mineradio 实时壁纸窗口仍在收尾，请稍后重试；Wallpaper Engine 本体会保留';
+  if (/WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED/.test(code)) return '上一次 Auroradio 实时壁纸窗口仍在收尾，请稍后重试；Wallpaper Engine 本体会保留';
   if (/WALLPAPER_ENGINE_DWM_SURFACE_FAILED|WALLPAPER_ENGINE_PARALLAX_RELAY_FAILED/.test(code)) return 'WE 原生鼠标视差连接失败，本次会话已关闭；请再次点击重连';
   if (/WALLPAPER_ENGINE_CONTROL_FAILED/.test(code)) return 'WE 场景控制暂时未就绪，请稍后重试';
   if (/WALLPAPER_ENGINE_WINDOW_TIMEOUT/.test(code)) return 'WE 场景窗口启动超时';
   if (/WALLPAPER_ENGINE_CAPTURE_UNAVAILABLE|WALLPAPER_CAPTURE_UNSUPPORTED/.test(code)) return '当前系统不支持实时窗口捕获';
-  if (/InvalidStateError/.test(code)) return 'WE 实时画面连接需要 Mineradio 保持在前台';
+  if (/InvalidStateError/.test(code)) return 'WE 实时画面连接需要 Auroradio 保持在前台';
   if (/NotAllowedError|Permission denied|PermissionDismissed/i.test(code)) return 'WE 实时画面捕获权限被拒绝';
   if (/NotReadableError/.test(code)) return 'WE 实时捕获通道暂时忙，已清理本次会话；请再次点击重连';
   if (/WALLPAPER_ENGINE_REFRESH_SUPERSEDED/.test(code)) return 'WE 实时窗口正在切换，请重试';

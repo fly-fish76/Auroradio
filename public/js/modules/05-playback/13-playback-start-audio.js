@@ -558,6 +558,26 @@ async function resolveAlbumGaplessPlaybackData(song) {
   if (playbackProvider === 'netease' && requestedQuality === 'jymaster' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'hires';
   var runtimeQualityCap = playbackQualityCapValue(song, playbackProvider);
   if (playbackQualityAboveCap(requestedQuality, playbackProvider, runtimeQualityCap)) requestedQuality = runtimeQualityCap;
+  // lx 歌曲 (kw/mg 等落雪专属平台): 直接由音源脚本解析
+  if (playbackProvider === 'lx' && typeof tryLxSourceResolution === 'function') {
+    return tryLxSourceResolution(song, requestedQuality, 'lx');
+  }
+  // 优先自定义音源模式: 先尝试 lx 解析
+  if (typeof lxSourcePrefersDirect === 'function' && lxSourcePrefersDirect(playbackProvider)) {
+    var lxFastData = await tryLxSourceResolution(song, requestedQuality, playbackProvider);
+    if (lxFastData && lxFastData.url) return lxFastData;
+  }
+  var data = await resolveAlbumGaplessDirectData(song, playbackProvider, requestedQuality);
+  if (data && data.url) return data;
+  // 官方解析失败 → lx 自定义音源兜底
+  if (typeof tryLxSourceResolution === 'function') {
+    var lxData = await tryLxSourceResolution(song, requestedQuality, playbackProvider);
+    if (lxData && lxData.url) return lxData;
+  }
+  return data;
+}
+
+async function resolveAlbumGaplessDirectData(song, playbackProvider, requestedQuality) {
   var qualityParam = '&quality=' + encodeURIComponent(requestedQuality);
   if (playbackProvider === 'qq') {
     return apiJson('/api/qq/song/url?mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&mediaMid=' + encodeURIComponent(song.mediaMid || song.media_mid || '') + qqPlaybackEvidenceQuery(song) + qualityParam, { timeoutMs: 15000 });
@@ -953,6 +973,7 @@ async function playQueueAt(idx, opts) {
   }
   var qualitySwitch = !!opts.qualitySwitch;
   startupRestoreHomePending = false;
+  startupHomeAutoOpenSuppressed = false; // 首次播放后恢复 Home 的常规显隐逻辑
   markRenderInteraction(qualitySwitch ? 'quality-switch' : 'track-switch', qualitySwitch ? 520 : 1500);
   var playPhase = 'start';
   function markPlayPhase(name) { playPhase = name; }
@@ -1114,10 +1135,19 @@ async function playQueueAt(idx, opts) {
       }
       var qualityParam = '&quality=' + encodeURIComponent(requestedQuality);
       var data;
+      // 优先自定义音源模式: 先尝试 lx 解析 (失败落回官方接口链)
+      if (!albumGaplessHandoff && !(opts.preResolvedPlaybackData && opts.preResolvedPlaybackData.url)
+        && typeof lxSourcePrefersDirect === 'function' && lxSourcePrefersDirect(playbackProvider)) {
+        data = await tryLxSourceResolution(song, requestedQuality, playbackProvider);
+        if (token !== trackSwitchToken) return;
+        if (!data || !data.url) data = null;
+      }
       if (albumGaplessHandoff) {
         data = opts.preloadedData;
       } else if (opts.preResolvedPlaybackData && opts.preResolvedPlaybackData.url) {
         data = opts.preResolvedPlaybackData;
+      } else if (data && data.url) {
+        // 已由 lx 自定义音源解析
       } else if (isQQPlayback) {
         data = await apiJson('/api/qq/song/url?mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&mediaMid=' + encodeURIComponent(song.mediaMid || song.media_mid || '') + qqPlaybackEvidenceQuery(song) + qualityParam, { timeoutMs: 15000 });
       } else if (isKugouPlayback) {
@@ -1139,6 +1169,11 @@ async function playQueueAt(idx, opts) {
           '&spotifyId=' + encodeURIComponent(song.spotifyId || '') +
           '&uri=' + encodeURIComponent(song.spotifyUri || song.uri || '') +
           qualityParam, { timeoutMs: 9000 });
+      } else if (playbackProvider === 'lx') {
+        // lx 歌曲 (kw/mg 等): 仅音源脚本可解析
+        data = typeof tryLxSourceResolution === 'function' ? await tryLxSourceResolution(song, requestedQuality, 'lx') : null;
+        if (token !== trackSwitchToken) return;
+        if (!data || !data.url) data = null;
       } else {
         data = await apiJson('/api/song/url?id=' + encodeURIComponent(song.id || '') + neteasePlaybackMatchQuery(song) + qualityParam, { timeoutMs: 14000 });
       }
@@ -1174,6 +1209,14 @@ async function playQueueAt(idx, opts) {
       }
       var retryPlaybackOpts = Object.assign({}, opts, { resumeAt: opts.resumeAt != null ? opts.resumeAt : restoreResumeAt });
       if (!data || !data.url) {
+        // 官方接口无 URL → 先尝试 lx 自定义音源兜底
+        if (typeof tryLxSourceResolution === 'function') {
+          var lxFallbackData = await tryLxSourceResolution(song, requestedQuality, playbackProvider);
+          if (token !== trackSwitchToken) return;
+          if (lxFallbackData && lxFallbackData.url) data = lxFallbackData;
+        }
+      }
+      if (!data || !data.url) {
         var fallbackResult = await tryAutoPlaybackFallback(song, data, idx, token, retryPlaybackOpts);
         if (fallbackResult !== null) return fallbackResult === true;
         if (opts.startupAutoplay) {
@@ -1186,10 +1229,19 @@ async function playQueueAt(idx, opts) {
       var resolvedQualityText = playbackResolvedQualityText(data, playbackProvider);
       var qualityDowngraded = !!(data && data.level && playbackQualityWasDowngraded(requestedQuality, data.level, playbackProvider));
       if (qualityDowngraded) markPlaybackQualityRuntimeCap(song, playbackProvider, data.level, 'resolved-lower');
-      if (!opts.startupAutoplay && !isQQPlayback && qualityDowngraded) {
+      if (!opts.startupAutoplay && !isQQPlayback && qualityDowngraded && data && data.lxResolved) {
+        // 落雪音源解析: 音质取决于脚本/源站, 不算"降级", 只提示实际音质与来源脚本
+        showSourceFallbackNotice('落雪音源(' + (data.via || '脚本') + ') · ' + resolvedQualityText, '脚本对该曲可提供的最高音质为 ' + resolvedQualityText + '。');
+      } else if (!opts.startupAutoplay && !isQQPlayback && qualityDowngraded) {
         showSourceFallbackNotice((isKugouPlayback ? '酷狗' : (isQishuiPlayback ? '汽水' : '网易云')) + '音质自动降级', '请求 ' + playbackQualityLabel(requestedQuality, playbackProvider) + '，实际播放 ' + resolvedQualityText + '。');
       } else if (!opts.startupAutoplay && opts.qualitySwitch) {
         showSourceFallbackNotice('音质已切换', '实际播放: ' + resolvedQualityText + '。');
+      }
+      // 试听片段/VIP 限制 → 尝试 lx 自定义音源取完整音频
+      if (data && data.url && data.trial && typeof tryLxSourceResolution === 'function') {
+        var lxTrialData = await tryLxSourceResolution(song, requestedQuality, playbackProvider);
+        if (token !== trackSwitchToken) return;
+        if (lxTrialData && lxTrialData.url) data = lxTrialData;
       }
       if (data.trial) {
         var txt;

@@ -336,7 +336,7 @@ async function main() {
         }
         const sources = [{ id: captureSourceId, name: title }];
         if (exposeGlassCaptureSource) {
-          sources.push({ id: 'window:6262:0', name: 'Mineradio WE DWM Surface' });
+          sources.push({ id: 'window:6262:0', name: 'Auroradio WE DWM Surface' });
         }
         return sources;
       },
@@ -377,7 +377,7 @@ async function main() {
   assert.strictEqual(stalledLayeringSession.dwmSurfaceProcess, null,
     'an unresponsive icon-layer helper must be retired before leaving coexistence');
   assert(stalledLayeringCommands.includes('I|0') && stalledLayeringCommands.includes('Q'),
-    'the fallback must request ordinary ordering and stop only the Mineradio DWM helper');
+    'the fallback must request ordinary ordering and stop only the Auroradio DWM helper');
   if (stalledLayeringSession.dwmSurfaceRetryTimer) clearTimeout(stalledLayeringSession.dwmSurfaceRetryTimer);
   stalledLayeringSession.dwmSurfaceRetryTimer = null;
   stalledLayeringChild.emit('exit', 0, null);
@@ -395,13 +395,13 @@ async function main() {
     '-properties',
     'RAW~({"volume":0})~END',
     '-location',
-    'Mineradio Wallpaper spaced-path-test',
+    'Auroradio Wallpaper spaced-path-test',
   ]);
   assert.strictEqual(spacedControlCalls.length, 1);
   assert.strictEqual(spacedControlCalls[0].file, 'wallpaper64.exe');
   assert.strictEqual(spacedControlCalls[0].options.cwd, 'C:\\Program Files\\Wallpaper Engine');
   assert(spacedControlCalls[0].args.includes('RAW~({"volume":0})~END'));
-  assert(spacedControlCalls[0].args.includes('"Mineradio Wallpaper spaced-path-test"'));
+  assert(spacedControlCalls[0].args.includes('"Auroradio Wallpaper spaced-path-test"'));
   assert.strictEqual(spacedControlCalls[0].options.shell, false);
   assert.strictEqual(spacedControlCalls[0].options.windowsVerbatimArguments, true);
   await spacedControlRuntime.dispose();
@@ -496,7 +496,7 @@ async function main() {
     assert(dwmHelperSource.includes('DwmRegisterThumbnail'));
     assert(!dwmHelperSource.includes('DwmQueryThumbnailSourceSize'));
     assert(!dwmHelperSource.includes('GlassRefractionSurface'));
-    assert(!dwmHelperSource.includes('Mineradio WE Glass Refraction'));
+    assert(!dwmHelperSource.includes('Auroradio WE Glass Refraction'));
     assert(!dwmHelperSource.includes('command.StartsWith("G|"'),
       'the native helper must not retain a second glass-layer geometry protocol');
     assert(dwmHelperSource.includes('message.Result = new IntPtr(HTTRANSPARENT)'),
@@ -560,7 +560,7 @@ async function main() {
     });
     assert.deepStrictEqual(glassCaptureSource, {
       id: 'window:6262:0',
-      name: 'Mineradio WE DWM Surface',
+      name: 'Auroradio WE DWM Surface',
     });
     const activatedDwm = await runtime.activateDwmSurface(started.sessionId);
     assert.strictEqual(activatedDwm.dwmSurfaceActive, true);
@@ -657,7 +657,7 @@ async function main() {
     muteCalls.forEach((mute) => {
       assert.strictEqual(mute.file, path.basename(executable));
       assert.strictEqual(mute.options.cwd, path.dirname(executable));
-      assert.strictEqual(mute.args[mute.args.indexOf('-location') + 1].replace(/^\"|\"$/g, ''), locationTitle, 'every mute control must use the unique Mineradio location');
+      assert.strictEqual(mute.args[mute.args.indexOf('-location') + 1].replace(/^\"|\"$/g, ''), locationTitle, 'every mute control must use the unique Auroradio location');
       assert.deepStrictEqual(JSON.parse(mute.args[mute.args.indexOf('-properties') + 1].slice(5, -5)), {
         volume: 0,
         newproperty: 0,
@@ -1600,7 +1600,7 @@ async function main() {
       assert.strictEqual(muteRetryOpens.length, 1, 'a location-mute retry must not reopen the PAK or create another window');
       assert.strictEqual(muteRetryOpens[0].args[muteRetryOpens[0].args.indexOf('-file') + 1], scenePak);
       const muteRetryLocation = muteRetryOpens[0].args[muteRetryOpens[0].args.indexOf('-playInWindow') + 1];
-      assert(/^Mineradio Wallpaper [a-f0-9]{24}$/.test(muteRetryLocation));
+      assert(/^Auroradio Wallpaper [a-f0-9]{24}$/.test(muteRetryLocation));
       const muteRetryPropertyCalls = muteRetryControls.filter((call) => call.args[1] === 'applyProperties');
       assert.strictEqual(muteRetryPropertyCalls.length, 2, 'the first CONTROL_FAILED must be retried once before startup succeeds');
       muteRetryPropertyCalls.forEach((call) => {
@@ -1672,7 +1672,7 @@ async function main() {
     assert(!decodedBroker.includes(executable) && !decodedBroker.includes(projectFile));
     brokerCalls.slice(1, 2).forEach((call) => {
       assert(/\bapplyProperties\b/.test(call.options.env.MINERADIO_WE_CONTROL_COMMAND_LINE));
-      assert(/-location\s+"Mineradio Wallpaper [a-f0-9]{24}"/.test(call.options.env.MINERADIO_WE_CONTROL_COMMAND_LINE), 'audio suppression must target only the Mineradio pop-out location');
+      assert(/-location\s+"Auroradio Wallpaper [a-f0-9]{24}"/.test(call.options.env.MINERADIO_WE_CONTROL_COMMAND_LINE), 'audio suppression must target only the Auroradio pop-out location');
       assert(call.options.env.MINERADIO_WE_CONTROL_COMMAND_LINE.includes('RAW~({"volume":0})~END'), 'the broker must preserve Wallpaper Engine RAW JSON without backslash escaping');
       assert(!/\s-control\s+mute(?:\s|$)/.test(call.options.env.MINERADIO_WE_CONTROL_COMMAND_LINE), 'global Wallpaper Engine mute must never be used');
     });

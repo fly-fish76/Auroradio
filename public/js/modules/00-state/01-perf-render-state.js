@@ -3,7 +3,7 @@ function markAppPerf(name) {
     var value = performance.now();
     appPerfMarks.push({ name: name, value: Math.round(value) });
     if (performance && performance.mark) performance.mark('mineradio:' + name);
-    if (appPerfMarks.length <= 16) console.debug('[MineradioPerf]', name, Math.round(value) + 'ms');
+    if (appPerfMarks.length <= 16) console.debug('[AuroradioPerf]', name, Math.round(value) + 'ms');
   } catch (e) { }
 }
 markAppPerf('script-start');
@@ -13,7 +13,7 @@ function installStartupLongTaskObserver() {
     var observer = new PerformanceObserver(function (list) {
       list.getEntries().forEach(function (entry) {
         if (entry.startTime > 15000) return;
-        console.debug('[MineradioPerf] longtask', Math.round(entry.startTime) + 'ms', Math.round(entry.duration) + 'ms');
+        console.debug('[AuroradioPerf] longtask', Math.round(entry.startTime) + 'ms', Math.round(entry.duration) + 'ms');
       });
     });
     observer.observe({ entryTypes: ['longtask'] });
@@ -53,26 +53,3 @@ var smoothWheelScrollBound = false;
 var coverProcessToken = 0, aiDepthPipeline = null, aiDepthReady = false, aiDepthBusy = false, aiDepthFailUntil = 0;
 var coverDepthCache = Object.create(null), coverDepthCacheKeys = [];
 var aiDepthLastRunAt = 0, aiDepthMinGapMs = 18000;
-var updatePreviewState = {
-  visible: false,
-  open: false,
-  status: 'idle',
-  progress: 0,
-  currentVersion: '2.1.0',
-  version: '2.1.0',
-  configured: false,
-  preview: false,
-  updateAvailable: false,
-  releaseUrl: '',
-  externalUrl: '',
-  downloadPageUrl: '',
-  downloadPages: [],
-  selectedDownloadPageIndex: 0,
-  errorReason: '',
-  message: '',
-  hero: '当前版本已是最新。',
-  notes: [
-    '修复多行歌词与 3D 歌单架的显示层级',
-    '优化更新入口与安装包获取流程'
-  ]
-};

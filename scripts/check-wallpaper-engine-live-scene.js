@@ -15,7 +15,7 @@ const requestedWorkshopId = workshopArgument ? workshopArgument.slice('--worksho
 async function main() {
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
   const target = targets.find((item) => item.type === 'page' && /127\.0\.0\.1/.test(item.url || ''));
-  assert(target && target.webSocketDebuggerUrl, 'Mineradio CDP page target was not found');
+  assert(target && target.webSocketDebuggerUrl, 'Auroradio CDP page target was not found');
 
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
@@ -195,16 +195,16 @@ async function main() {
   assert.strictEqual(result.applied.captureMode, 'main-prepared', 'native Scene did not use the main-process prepared capture path');
   if (requestedWorkshopId) assert.strictEqual(String(result.applied.workshopId || ''), requestedWorkshopId, 'requested workshop Scene was not selected');
   assert.strictEqual(result.applied.audioTrackCount, 0, 'native Scene capture must not contain an audio track');
-  assert(result.applied.runtimeStatus && result.applied.runtimeStatus.sourceWindowEmbedded === true, 'Wallpaper Engine source window was not docked directly behind Mineradio');
-  assert.strictEqual(result.applied.runtimeStatus.sourceWindowAligned, true, 'Wallpaper Engine source window is not pixel-aligned with Mineradio');
+  assert(result.applied.runtimeStatus && result.applied.runtimeStatus.sourceWindowEmbedded === true, 'Wallpaper Engine source window was not docked directly behind Auroradio');
+  assert.strictEqual(result.applied.runtimeStatus.sourceWindowAligned, true, 'Wallpaper Engine source window is not pixel-aligned with Auroradio');
   const sourceRect = result.applied.runtimeStatus.sourceWindowRect;
   const hostRect = result.applied.runtimeStatus.hostWindowRect;
   assert(sourceRect && hostRect, 'Wallpaper Engine source/host bounds are unavailable');
   for (const edge of ['left', 'top', 'right', 'bottom']) {
     assert(Math.abs(Number(sourceRect[edge]) - Number(hostRect[edge])) <= 2, `Wallpaper Engine ${edge} edge is not pixel-aligned`);
   }
-  assert(Math.abs(result.applied.videoWidth - result.applied.runtimeStatus.width) <= 2, 'native Scene capture width does not match the Mineradio compositor');
-  assert(Math.abs(result.applied.videoHeight - result.applied.runtimeStatus.height) <= 2, 'native Scene capture height does not match the Mineradio compositor');
+  assert(Math.abs(result.applied.videoWidth - result.applied.runtimeStatus.width) <= 2, 'native Scene capture width does not match the Auroradio compositor');
+  assert(Math.abs(result.applied.videoHeight - result.applied.runtimeStatus.height) <= 2, 'native Scene capture height does not match the Auroradio compositor');
   if (result.applied.cursorCapture && result.applied.cursorCapture !== 'never') {
     assert.strictEqual(result.applied.runtimeStatus.sourceWindowAligned, true, 'cursor-capturing fallback requires exact source/host alignment');
   }

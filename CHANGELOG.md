@@ -33,12 +33,12 @@
 
 ## v1.1.1
 
-- P0 installer safety fix: installation now defaults to the first available non-C drive from `D:\Mineradio` through `Z:\Mineradio`; it falls back to `C:\Mineradio` only when no D-Z drive exists.
-- The installer now forces the target path into a dedicated `Mineradio` folder, blocks non-empty non-Mineradio-owned targets, and blocks C drive installs when a D-Z drive is available.
-- Existing registered installs in a dedicated `...\Mineradio` folder are adopted in place so users can run the new setup over their current installation and receive the safe uninstaller.
-- Existing dedicated `...\Mineradio` folders that already contain Mineradio files can be overwritten even if they were created before the new safety marker existed.
-- The new uninstaller no longer removes the whole installation root or app subfolders recursively; it deletes only known top-level Mineradio/Electron files and leaves unrelated files in place.
-- Legacy uninstallers without the new safety marker are skipped during install; the setup deletes only the old `Uninstall Mineradio.exe` file and registry entry so it cannot indirectly trigger an older unsafe uninstall routine.
+- P0 installer safety fix: installation now defaults to the first available non-C drive from `D:\Auroradio` through `Z:\Auroradio`; it falls back to `C:\Auroradio` only when no D-Z drive exists.
+- The installer now forces the target path into a dedicated `Auroradio` folder, blocks non-empty non-Auroradio-owned targets, and blocks C drive installs when a D-Z drive is available.
+- Existing registered installs in a dedicated `...\Auroradio` folder are adopted in place so users can run the new setup over their current installation and receive the safe uninstaller.
+- Existing dedicated `...\Auroradio` folders that already contain Auroradio files can be overwritten even if they were created before the new safety marker existed.
+- The new uninstaller no longer removes the whole installation root or app subfolders recursively; it deletes only known top-level Auroradio/Electron files and leaves unrelated files in place.
+- Legacy uninstallers without the new safety marker are skipped during install; the setup deletes only the old `Uninstall Auroradio.exe` file and registry entry so it cannot indirectly trigger an older unsafe uninstall routine.
 - Installer/uninstaller safety fixes require the full setup package; quick patch JSON files must not be used as the only delivery path for this issue.
 
 ## v1.1.0
@@ -70,7 +70,7 @@
 ## v1.0.9
 
 - 修复安装包深色界面中部分文字仍为黑色导致看不清的问题，安装器改为浅色高对比界面。
-- 安装包支持用户自由选择安装目录；默认仍优先 `D:\Mineradio`，选择盘根目录时会自动补全 `Mineradio` 文件夹。
+- 安装包支持用户自由选择安装目录；默认仍优先 `D:\Auroradio`，选择盘根目录时会自动补全 `Auroradio` 文件夹。
 - 修复软件可重复打开的问题，重复启动时会聚焦当前已运行的窗口。
 - 修复软件每次启动都会自动创建/刷新桌面快捷方式的问题。
 
@@ -153,7 +153,7 @@
 - 播放队列写入后强制恢复底部控制台可交互状态，避免天气电台或歌单开播后控制台残留不可点击。
 - 启动页退出后补 Home 恢复安全网，避免首页隐藏在空场背景后。
 
-- 发布 Mineradio 首个正式版本，GitHub 主页和安装包版本统一为 `1.0.0`。
+- 发布 Auroradio 首个正式版本，GitHub 主页和安装包版本统一为 `1.0.0`。
 - 首页正式版包含天气电台、每日推荐、私人电台、继续听、听歌画像和我的歌单入口。
 - 天气电台接入 Open-Meteo，并优先混入每日推荐和私人推荐曲库，过滤 AI / 白噪音 / 雨声助眠等低质结果。
 - 修复窗口模式下主页 6 张主卡片在紧凑尺寸中过早堆叠、挤出首屏的问题。

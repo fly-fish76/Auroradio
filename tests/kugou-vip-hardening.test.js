@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const kugou = require('../kugou-api');
+const kugou = require('../services/kugou-api');
 
 const {
   extractKugouAuth,

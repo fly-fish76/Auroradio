@@ -48,7 +48,16 @@ var lyricTiltEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 var lyricBaseQuat = new THREE.Quaternion();
 var lyricTiltQuat = new THREE.Quaternion();
 var lyricTargetQuat = new THREE.Quaternion();
+var lyricLevelMat = new THREE.Matrix4();
+var lyricLevelQuat = new THREE.Quaternion();
+var LYRIC_LEVEL_UP = new THREE.Vector3(0, 1, 0);
 var LYRIC_CAMERA_LOCK_MAX_SCALE = 0.80;
+// 歌词保持水平: 朝向 = 垂直告示板 (+z 指向相机, 世界Up约束) — 无滚转无俯仰, 不跟随封面平面旋转
+function stageLyricLevelQuaternion(facingPos) {
+  if (!camera || !facingPos) return lyricLevelQuat.identity();
+  lyricLevelMat.lookAt(camera.position, facingPos, LYRIC_LEVEL_UP);
+  return lyricLevelQuat.setFromRotationMatrix(lyricLevelMat);
+}
 function setStageLyricViewBasisFromCameraOrQuaternion(fallbackQuat) {
   if (fallbackQuat) {
     lyricCameraDir.set(0, 0, 1).applyQuaternion(fallbackQuat);

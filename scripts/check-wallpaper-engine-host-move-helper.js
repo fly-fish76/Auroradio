@@ -11,10 +11,10 @@ function sleep(milliseconds) {
 }
 
 async function main() {
-  assert(Number.isInteger(hostPid) && hostPid > 0, 'A Mineradio host PID is required');
+  assert(Number.isInteger(hostPid) && hostPid > 0, 'A Auroradio host PID is required');
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
   const target = targets.find((item) => item.type === 'page' && /127\.0\.0\.1/.test(item.url || ''));
-  assert(target && target.webSocketDebuggerUrl, 'Mineradio renderer target was not found');
+  assert(target && target.webSocketDebuggerUrl, 'Auroradio renderer target was not found');
 
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
@@ -80,21 +80,21 @@ async function main() {
 
   const script = `
 $ErrorActionPreference='Stop'
-$env:TEMP='D:\\MineradioCache\\native-helper-temp'
+$env:TEMP='D:\\AuroradioCache\\native-helper-temp'
 $env:TMP=$env:TEMP
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class MineradioQaHostMove {
+public static class AuroradioQaHostMove {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
   [DllImport("user32.dll", SetLastError=true)] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
 }
 '@
 $app=Get-Process -Id ${hostPid} -ErrorAction Stop
-$rect=New-Object MineradioQaHostMove+RECT
-if (-not [MineradioQaHostMove]::GetWindowRect($app.MainWindowHandle,[ref]$rect)) { throw 'GetWindowRect failed' }
-if (-not [MineradioQaHostMove]::SetWindowPos($app.MainWindowHandle,[IntPtr]::Zero,$rect.Left+80,$rect.Top+40,0,0,0x0015)) { throw 'SetWindowPos failed' }
+$rect=New-Object AuroradioQaHostMove+RECT
+if (-not [AuroradioQaHostMove]::GetWindowRect($app.MainWindowHandle,[ref]$rect)) { throw 'GetWindowRect failed' }
+if (-not [AuroradioQaHostMove]::SetWindowPos($app.MainWindowHandle,[IntPtr]::Zero,$rect.Left+80,$rect.Top+40,0,0,0x0015)) { throw 'SetWindowPos failed' }
 `;
   const encoded = Buffer.from(script, 'utf16le').toString('base64');
   const moved = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
@@ -103,8 +103,8 @@ if (-not [MineradioQaHostMove]::SetWindowPos($app.MainWindowHandle,[IntPtr]::Zer
     timeout: 15000,
     env: {
       ...process.env,
-      TEMP: 'D:\\MineradioCache\\native-helper-temp',
-      TMP: 'D:\\MineradioCache\\native-helper-temp',
+      TEMP: 'D:\\AuroradioCache\\native-helper-temp',
+      TMP: 'D:\\AuroradioCache\\native-helper-temp',
     },
   });
   assert.strictEqual(moved.status, 0, moved.stderr || moved.stdout || 'Host move failed');

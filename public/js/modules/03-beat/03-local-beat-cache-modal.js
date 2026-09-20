@@ -202,7 +202,7 @@ function applyLocalBeatMap(song, mode, map, fromCache) {
   }
   hideBeatChip();
   notifyDesktopLyricsBeatMapReady();
-  if (fromCache) showToast((mode === 'dj' ? 'DJ' : 'MR') + ' 本地节奏缓存已载入');
+  if (fromCache) showToast((mode === 'dj' ? 'DJ' : 'A') + ' 本地节奏缓存已载入');
   return true;
 }
 function prepareLocalBeatAnalysis(song, audioUrl) {
@@ -272,7 +272,7 @@ function updateLocalBeatModal() {
   var desc = document.getElementById('local-beat-desc');
   if (desc) desc.textContent = mode === 'dj'
     ? '适合 DJ、长混音或鼓点密集的本地音频，会使用更稳定的低频锁拍并进入 DJ 视觉驱动。'
-    : '适合普通歌曲和日常播放，会沿用 Mineradio 电影视角的综合节奏分析。';
+    : '适合普通歌曲和日常播放，会沿用 Auroradio 电影视角的综合节奏分析。';
   var start = document.getElementById('local-beat-start-btn');
   var cancel = document.getElementById('local-beat-cancel-btn');
   var later = document.getElementById('local-beat-later-btn');
@@ -318,7 +318,7 @@ async function startLocalBeatAnalysis(mode) {
   localBeatAnalysis.token++;
   var localToken = localBeatAnalysis.token;
   updateLocalBeatModal();
-  setLocalBeatStatus((mode === 'dj' ? 'DJ' : 'MR') + ' 分析准备中...', 'warn');
+  setLocalBeatStatus((mode === 'dj' ? 'DJ' : 'A') + ' 分析准备中...', 'warn');
   try {
     var map = null;
     if (mode === 'dj') {
@@ -345,9 +345,9 @@ async function startLocalBeatAnalysis(mode) {
     storeLocalBeatEntry(song.localKey, mode, map, song);
     applyLocalBeatMap(song, mode, map, false);
     localBeatAnalysis.active = false;
-    setLocalBeatStatus((mode === 'dj' ? 'DJ' : 'MR') + ' 分析完成: ' + localBeatVisualCount(map) + ' 个主拍');
+    setLocalBeatStatus((mode === 'dj' ? 'DJ' : 'A') + ' 分析完成: ' + localBeatVisualCount(map) + ' 个主拍');
     updateLocalBeatModal();
-    showToast((mode === 'dj' ? 'DJ' : 'MR') + ' 本地节奏分析完成');
+    showToast((mode === 'dj' ? 'DJ' : 'A') + ' 本地节奏分析完成');
     setTimeout(function () {
       if (!localBeatAnalysis.active) closeGsapModal(document.getElementById('local-beat-modal'));
     }, 900);

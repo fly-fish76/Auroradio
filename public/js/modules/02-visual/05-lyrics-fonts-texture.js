@@ -29,7 +29,7 @@ function normalizeCustomLyricFontRecord(raw) {
   return {
     id: id,
     name: normalizeCustomLyricFontName(raw.name),
-    family: String(raw.family || ('MineradioCustomLyricFont-' + id)).replace(/["\\]/g, '').slice(0, 72) || ('MineradioCustomLyricFont-' + id),
+    family: String(raw.family || ('AuroradioCustomLyricFont-' + id)).replace(/["\\]/g, '').slice(0, 72) || ('AuroradioCustomLyricFont-' + id),
     dataUrl: dataUrl,
     size: Math.max(0, Number(raw.size) || 0),
     savedAt: Math.max(0, Number(raw.savedAt) || Date.now())

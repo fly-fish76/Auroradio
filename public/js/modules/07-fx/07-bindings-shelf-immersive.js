@@ -20,6 +20,7 @@ function bindFxPanel() {
     ['fx-sonicglow', 'sonicGroundGlow'], ['fx-sonicfloatcount', 'sonicGroundFloatingCount'], ['fx-sonicfloatintensity', 'sonicGroundFloatingIntensity'], ['fx-sonicfloatmin', 'sonicGroundFloatingMinSize'], ['fx-sonicfloatmax', 'sonicGroundFloatingMaxSize'], ['fx-sonicfloatspeed', 'sonicGroundFloatingSpeed'],
     ['fx-bgopacity', 'backgroundOpacity'], ['fx-bgcropx', 'backgroundMediaCropX'], ['fx-bgcropy', 'backgroundMediaCropY'], ['fx-bgzoom', 'backgroundMediaZoom'], ['fx-windowbgopacity', 'windowBackgroundOpacity'], ['fx-bgglassopacity', 'backgroundGlassOpacity'], ['fx-glassaberration', 'controlGlassChromaticOffset'],
     ['fx-playlistblur', 'playlistPanelGlassBlur'], ['fx-playlistdensity', 'playlistPanelGlassDensity'], ['fx-playlistopen', 'playlistPanelOpenDuration'], ['fx-playlistclose', 'playlistPanelCloseDuration'],
+    ['fx-progressparticles', 'progressParticleAmount'], ['fx-progressbright', 'progressParticleBrightness'], ['fx-progresssize', 'progressParticleSize'],
     ['fx-desktoplyricssize', 'desktopLyricsSize'], ['fx-desktoplyricsopacity', 'desktopLyricsOpacity'], ['fx-desktoplyricsy', 'desktopLyricsY'], ['fx-wallpaperopacity', 'wallpaperOpacity'],
     ['fx-shelfsize', 'shelfSize'], ['fx-shelfx', 'shelfOffsetX'], ['fx-shelfy', 'shelfOffsetY'], ['fx-shelfz', 'shelfOffsetZ'], ['fx-shelfangle', 'shelfAngleY'], ['fx-shelfopacity', 'shelfOpacity'], ['fx-shelfbgalpha', 'shelfBgOpacity'],
     ['fx-shelfdetailx', 'shelfDetailOffsetX'], ['fx-shelfdetaily', 'shelfDetailOffsetY'], ['fx-shelfdetailz', 'shelfDetailOffsetZ'], ['fx-shelfdetailscale', 'shelfDetailScale'], ['fx-shelfdetailanglex', 'shelfDetailAngleX'], ['fx-shelfdetailangley', 'shelfDetailAngleY'], ['fx-shelfdetailrowgap', 'shelfDetailRowGap'],
@@ -31,8 +32,11 @@ function bindFxPanel() {
     ['fx-lyricglitchintensity', 'lyricGlitchIntensity'], ['fx-lyricglitchslice', 'lyricGlitchSlice'], ['fx-lyricglitchchroma', 'lyricGlitchChroma'], ['fx-lyricglitchrate', 'lyricGlitchRate'], ['fx-lyricglitchjitter', 'lyricGlitchJitter'],
     ['fx-lyriccontextopacity', 'lyricContextOpacity'], ['fx-lyriccontextspread', 'lyricContextSpread'], ['fx-lyrictranslationgap', 'lyricTranslationGap'], ['fx-lyrictranslationscale', 'lyricTranslationScale'], ['fx-lyrictranslationopacity', 'lyricTranslationOpacity'], ['fx-lyricedgefade', 'lyricEdgeFade'], ['fx-lyricmotionsoftness', 'lyricMotionSoftness'],
     ['fx-lyricscale', 'lyricScale'], ['fx-lyricx', 'lyricOffsetX'], ['fx-lyricy', 'lyricOffsetY'], ['fx-lyricz', 'lyricOffsetZ'], ['fx-lyrictiltx', 'lyricTiltX'], ['fx-lyrictilty', 'lyricTiltY'],
-    ['fx-point', 'point'], ['fx-speed', 'speed'], ['fx-twist', 'twist'],
-    ['fx-color', 'color'], ['fx-bloom', 'bloomStrength'], ['fx-scatter', 'scatter'], ['fx-bgfade', 'bgFade'],
+    ['fx-pdensity', 'particleDensity'], ['fx-pcount', 'particleCount'], ['fx-point', 'point'], ['fx-speed', 'speed'], ['fx-twist', 'twist'],
+    ['fx-flightspeed', 'phoenixFlightSpeed'], ['fx-flightamp', 'phoenixFlightAmp'], ['fx-flightsize', 'phoenixFlightSize'], ['fx-flighttilt', 'phoenixFlightTilt'], ['fx-flightspin', 'phoenixFlightSpin'],
+    ['fx-phoenixx', 'phoenixPosX'], ['fx-phoenixy', 'phoenixPosY'],
+    ['fx-zoom', 'zoomRadius'],
+    ['fx-color', 'color'], ['fx-bright', 'brightness'], ['fx-bloom', 'bloomStrength'], ['fx-scatter', 'scatter'], ['fx-bgfade', 'bgFade'],
   ];
   ids.forEach(function (pair) {
     var el = document.getElementById(pair[0]);
@@ -141,11 +145,25 @@ function bindFxPanel() {
       if (pair[1] === 'lyricTranslationScale') fx.lyricTranslationScale = clampRange(fx.lyricTranslationScale, 0.46, 1.12);
       if (pair[1] === 'lyricTranslationOpacity') fx.lyricTranslationOpacity = clampRange(fx.lyricTranslationOpacity, 0.20, 1);
       if (pair[1] === 'lyricGlitchJitter') fx.lyricGlitchJitter = clampRange(fx.lyricGlitchJitter, 0, 1.8);
+      if (pair[1] === 'particleCount') fx.particleCount = clampRange(fx.particleCount, 0.1, 1);
+      if (pair[1] === 'phoenixPosX') fx.phoenixPosX = clampRange(fx.phoenixPosX, -8, 8);
+      if (pair[1] === 'phoenixPosY') fx.phoenixPosY = clampRange(fx.phoenixPosY, -2.5, 2.5);
+      if (pair[1] === 'zoomRadius') {
+        if (typeof applyFxZoomRadiusToOrbit === 'function') {
+          applyFxZoomRadiusToOrbit();
+          el.value = fx.zoomRadius;
+        }
+      }
+      if (pair[1] === 'particleDensity') {
+        fx.particleDensity = clampRange(fx.particleDensity, 1, 4);
+        if (typeof applyParticleDensity === 'function') applyParticleDensity(fx.particleDensity, { debounce: true });
+      }
       if (out) out.textContent = pair[1] === 'coverResolution'
         ? coverParticleCountLabel(fx.coverResolution)
-        : (pair[1] === 'lyricWeight' || /^sonicGround/.test(pair[1]) || /^sonicAudio/.test(pair[1]) || pair[1] === 'sonicWorkshopInputGain' || pair[1] === 'controlGlassChromaticOffset' || pair[1] === 'playlistPanelGlassBlur' || pair[1] === 'backgroundMediaCropX' || pair[1] === 'backgroundMediaCropY' || pair[1] === 'lyricTiltX' || pair[1] === 'lyricTiltY' || pair[1] === 'shelfAngleY' || pair[1] === 'shelfDetailAngleX' || pair[1] === 'shelfDetailAngleY' ? String(Math.round(fx[pair[1]])) : Number(el.value).toFixed(pair[1] === 'lyricLetterSpacing' ? 3 : 2));
+        : (pair[1] === 'particleCount' ? Math.round(fx.particleCount * 100) + '%' : (pair[1] === 'particleDensity' ? fx.particleDensity.toFixed(2) + '×' : (pair[1] === 'lyricWeight' || /^sonicGround/.test(pair[1]) || /^sonicAudio/.test(pair[1]) || pair[1] === 'sonicWorkshopInputGain' || pair[1] === 'controlGlassChromaticOffset' || pair[1] === 'playlistPanelGlassBlur' || pair[1] === 'backgroundMediaCropX' || pair[1] === 'backgroundMediaCropY' || pair[1] === 'lyricTiltX' || pair[1] === 'lyricTiltY' || pair[1] === 'shelfAngleY' || pair[1] === 'shelfDetailAngleX' || pair[1] === 'shelfDetailAngleY' ? String(Math.round(fx[pair[1]])) : Number(el.value).toFixed(pair[1] === 'lyricLetterSpacing' ? 3 : 2))));
+      if (pair[1] === 'zoomRadius' && out) out.textContent = Number(fx.zoomRadius).toFixed(1);
       if (typeof refreshSonicAudioMonitorUi === 'function' && /^sonicAudio/.test(pair[1])) refreshSonicAudioMonitorUi();
-      if (/^sonicWorkshop/.test(pair[1]) && window.MineradioSonicWorkshop && typeof MineradioSonicWorkshop.pushProperties === 'function') MineradioSonicWorkshop.pushProperties(true);
+      if (/^sonicWorkshop/.test(pair[1]) && window.AuroradioSonicWorkshop && typeof AuroradioSonicWorkshop.pushProperties === 'function') AuroradioSonicWorkshop.pushProperties(true);
       syncFxUniforms();
       if (/^playlistPanel/.test(pair[1])) applyPlaylistPanelFxSettings();
       if (/^shelf(Size|OffsetX|OffsetY|OffsetZ|AngleY|Opacity|BgOpacity|Detail|Summon|Camera)/.test(pair[1]) && shelfManager && shelfManager.refreshTheme) shelfManager.refreshTheme();
@@ -344,6 +362,30 @@ function bindFxPanel() {
       showToast(fx.desktopLyricsFps ? ('桌面歌词帧数 ' + fx.desktopLyricsFps) : '桌面歌词帧数无上限');
     });
   });
+  document.querySelectorAll('#player-shell-style-seg [data-player-shell]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      fx.playerShellStyle = normalizePlayerShellStyle(btn.getAttribute('data-player-shell'));
+      updatePlayerShellStyleControls();
+      saveLyricLayout({ user: true, reason: 'playerShellStyle' });
+      showToast(fx.playerShellStyle === 'borderless' ? '播放器外壳：无边框' : '播放器外壳：默认玻璃');
+    });
+  });
+  document.querySelectorAll('#progress-style-seg [data-progress-style]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      fx.progressStyle = normalizeProgressStyle(btn.getAttribute('data-progress-style'));
+      updateProgressStyleControls();
+      saveLyricLayout({ user: true, reason: 'progressStyle' });
+      showToast('进度条样式：' + btn.textContent);
+    });
+  });
+  document.querySelectorAll('#progress-spark-direction-seg [data-spark-direction]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      fx.progressSparkDirection = normalizeProgressSparkDirection(btn.getAttribute('data-spark-direction'));
+      updateProgressSparkDirectionControls();
+      saveLyricLayout({ user: true, reason: 'progressSparkDirection' });
+      showToast('火花方向：' + (fx.progressSparkDirection === 'left' ? '向左' : '向下'));
+    });
+  });
   document.querySelectorAll('#wallpaper-fps-seg [data-wallpaper-fps]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       fx.wallpaperFps = normalizeWallpaperFps(btn.getAttribute('data-wallpaper-fps'));
@@ -406,9 +448,22 @@ function toggleFx(key) {
   var toggleId = 't-' + (key === 'floatLayer' ? 'float' : key === 'aiDepth' ? 'aidepth' : key);
   var toggle = document.getElementById(toggleId);
   if (toggle) toggle.classList.toggle('on', fx[key]);
+  if (key === 'zoomFixed') {
+    // 开启固定缩放: 以当前轨道半径作为固定值 (滚轮/滑杆平时已持续镜像到 fx.zoomRadius)
+    if (fx.zoomFixed && typeof orbit !== 'undefined' && orbit && isFinite(orbit.userRadius) && orbit.userRadius > 0) {
+      fx.zoomRadius = Math.round(orbit.userRadius * 100) / 100;
+      if (typeof fxZoomRememberCurrent === 'function') fxZoomRememberCurrent();
+      if (typeof updateFxInputs === 'function') updateFxInputs();
+    }
+    saveLyricLayout({ user: true, reason: 'zoomFixed' });
+    showToast(fx.zoomFixed ? '固定缩放已开启：以后打开都按当前缩放展示' : '固定缩放已关闭：恢复各预设默认全景');
+    return;
+  }
   if (key === 'lyricGlow' || key === 'lyricGlowBeat') updateLyricGlowControls();
   syncFxUniforms();
-  if (key === 'lyricCameraLock' || key === 'lyricGlow' || key === 'lyricGlowBeat' || key === 'lyricGlowParticles' || key === 'lyricVerticalFloat' || key === 'backgroundStarRiver' || key === 'lyricPauseHold' || key === 'bloom' || key === 'edge' || key === 'cinema' || key === 'aiDepth' || key === 'desktopLyrics' || key === 'desktopLyricsClickThrough' || key === 'desktopLyricsCinema' || key === 'desktopLyricsHighlight' || key === 'wallpaperMode' || key === 'sonicGroundFloatingEnabled' || key === 'sonicAudioMonitorEnabled' || key === 'sonicAudioAutoTrack' || key === 'shelfShowPodcasts' || key === 'shelfMergeCollections' || key === 'liveBackgroundKeep' || key === 'memoryAutoTrimApp' || key === 'memoryAutoTrimOnBackground' || key === 'memoryAutoSystemTrim' || key === 'memorySystemAutoElevate') saveLyricLayout({ user: true, reason: key });
+  if (key === 'lyricCameraLock' || key === 'lyricGlow' || key === 'lyricGlowBeat' || key === 'lyricGlowParticles' || key === 'lyricVerticalFloat' || key === 'backgroundStarRiver' || key === 'lyricPauseHold' || key === 'bloom' || key === 'edge' || key === 'cinema' || key === 'aiDepth' || key === 'desktopLyrics' || key === 'desktopLyricsClickThrough' || key === 'desktopLyricsCinema' || key === 'desktopLyricsHighlight' || key === 'wallpaperMode' || key === 'sonicGroundFloatingEnabled' || key === 'sonicAudioMonitorEnabled' || key === 'sonicAudioAutoTrack' || key === 'shelfShowPodcasts' || key === 'shelfMergeCollections' || key === 'liveBackgroundKeep' || key === 'memoryAutoTrimApp' || key === 'memoryAutoTrimOnBackground' || key === 'memoryAutoSystemTrim' || key === 'memorySystemAutoElevate' || key === 'lyricAvoidPhoenix' || key === 'lyricKeepLevel') saveLyricLayout({ user: true, reason: key });
+  if (key === 'lyricAvoidPhoenix') showToast(fx.lyricAvoidPhoenix ? '歌词自动避让已开启：凤凰激活时歌词下移让位' : '歌词自动避让已关闭');
+  if (key === 'lyricKeepLevel') showToast(fx.lyricKeepLevel !== false ? '歌词保持水平已开启' : '歌词保持水平已关闭：恢复跟随封面旋转');
   if ((key === 'sonicAudioMonitorEnabled' || key === 'sonicAudioAutoTrack') && typeof refreshSonicAudioMonitorUi === 'function') refreshSonicAudioMonitorUi();
   if (key === 'floatLayer') { if (fx.floatLayer) createFloatLayer(); else destroyFloatLayer(); saveLyricLayout({ user: true, reason: key }); }
   if (key === 'desktopLyrics') applyDesktopLyricsState(true);
@@ -502,6 +557,8 @@ function resetFx() {
     shelfAngleY: shelfDefaultAngleForCameraMode(savedShelfCameraMode),
     shelfAngleYManual: false
   });
+  // 恢复默认: 清空所有预设的缩放记忆 (重新回到各预设基准全景)
+  if (typeof fxZoomPresetClearAll === 'function') fxZoomPresetClearAll();
   applyCoverParticleResolution(fx.coverResolution, { reload: true });
   updateFxInputs();
   syncFxUniforms();

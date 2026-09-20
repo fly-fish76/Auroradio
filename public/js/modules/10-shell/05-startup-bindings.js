@@ -85,7 +85,6 @@ safeRenderQueuePanel('startup-restore');
 updateCustomCoverButton();
 updateCustomLyricControls();
 updateLikeButtons();
-setTimeout(initUpdatePreview, 9000);
 window.addEventListener('beforeunload', function () {
   saveLastPlaybackSnapshot(true, 'beforeunload');
 });

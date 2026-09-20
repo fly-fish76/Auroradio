@@ -177,7 +177,7 @@ function ensureHotkeyModal() {
   modal.innerHTML =
     '<div class="hotkey-dialog" role="dialog" aria-modal="true" aria-label="热键设置">' +
     '<div class="hotkey-head">' +
-    '<div><div class="hotkey-title">热键设置</div><div class="hotkey-sub">局内热键只在 Mineradio 窗口内生效；全局热键会向系统注册，并检测是否被占用。</div></div>' +
+    '<div><div class="hotkey-title">热键设置</div><div class="hotkey-sub">局内热键只在 Auroradio 窗口内生效；全局热键会向系统注册，并检测是否被占用。</div></div>' +
     '<button class="hotkey-close" type="button" data-hotkey-close aria-label="关闭">×</button>' +
     '</div>' +
     '<div class="hotkey-toolbar">' +
@@ -202,7 +202,7 @@ function ensureHotkeyModal() {
 }
 function hotkeyStatusMarkup(scope, actionKey, binding, duplicate) {
   if (!binding) return '<span class="hotkey-status">未设置</span>';
-  if (duplicate && duplicate[binding] > 1) return '<span class="hotkey-status conflict"><span class="source-icon">!</span>Mineradio 内部重复</span>';
+  if (duplicate && duplicate[binding] > 1) return '<span class="hotkey-status conflict"><span class="source-icon">!</span>Auroradio 内部重复</span>';
   if (scope === 'local') return '<span class="hotkey-status ok">可用</span>';
   var status = hotkeyGlobalStatus[actionKey];
   if (!status) return '<span class="hotkey-status">待检测</span>';

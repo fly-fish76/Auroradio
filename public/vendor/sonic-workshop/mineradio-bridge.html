@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineradio Sonic Workshop Bridge</title>
+    <title>Auroradio Sonic Workshop Bridge</title>
     <link rel="icon" href="data:,">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -95,10 +95,10 @@
           }).join(' ');
         }
 
-        function cloneMineradioTheme(theme) {
+        function cloneAuroradioTheme(theme) {
           if (!theme) return null;
           var out = {
-            name: theme.name || 'Mineradio Region Palette',
+            name: theme.name || 'Auroradio Region Palette',
             id: theme.id || 'mineradio-custom',
             __primaryColor: normalizeHex(theme.__primaryColor || '#cb6c89', '#cb6c89'),
             uGlowIntensity: Number(theme.uGlowIntensity) || 1
@@ -110,19 +110,19 @@
         }
 
         function mineradioThemeSignature(theme) {
-          theme = cloneMineradioTheme(theme);
+          theme = cloneAuroradioTheme(theme);
           if (!theme) return '';
           return JSON.stringify(themeColorKeys.map(function (key) {
             return theme[key];
           }).concat([theme.__primaryColor, Number(theme.uGlowIntensity) || 1]));
         }
 
-        function mixMineradioTheme(from, to, t) {
-          from = cloneMineradioTheme(from) || cloneMineradioTheme(to);
-          to = cloneMineradioTheme(to) || cloneMineradioTheme(from);
+        function mixAuroradioTheme(from, to, t) {
+          from = cloneAuroradioTheme(from) || cloneAuroradioTheme(to);
+          to = cloneAuroradioTheme(to) || cloneAuroradioTheme(from);
           t = clamp01(t);
           var out = {
-            name: to.name || from.name || 'Mineradio Region Palette',
+            name: to.name || from.name || 'Auroradio Region Palette',
             id: to.id || from.id || 'mineradio-custom',
             __primaryColor: mixHex(from.__primaryColor, to.__primaryColor, t),
             uGlowIntensity: Number((from.uGlowIntensity + (to.uGlowIntensity - from.uGlowIntensity) * t).toFixed(3))
@@ -243,7 +243,7 @@
         }
 
         function applyThemeTransition(targetTheme) {
-          targetTheme = cloneMineradioTheme(targetTheme);
+          targetTheme = cloneAuroradioTheme(targetTheme);
           if (!targetTheme) {
             stopThemeTransition();
             displayedTheme = null;
@@ -261,12 +261,12 @@
             if (propertyReady) applyDefaultProperties();
             return;
           }
-          var fromTheme = cloneMineradioTheme(displayedTheme || defaultProperties.mineradioCustomTheme) || targetTheme;
+          var fromTheme = cloneAuroradioTheme(displayedTheme || defaultProperties.mineradioCustomTheme) || targetTheme;
           var startedAt = performance.now();
           stopThemeTransition();
           function stepThemeTransition() {
             var raw = clamp01((performance.now() - startedAt) / THEME_TRANSITION_MS);
-            var shown = raw >= 1 ? targetTheme : mixMineradioTheme(fromTheme, targetTheme, themeEase(raw));
+            var shown = raw >= 1 ? targetTheme : mixAuroradioTheme(fromTheme, targetTheme, themeEase(raw));
             displayedTheme = shown;
             defaultProperties.mineradioCustomTheme = shown;
             defaultProperties.schemecolor = schemeColorFromHex(shown.__primaryColor);

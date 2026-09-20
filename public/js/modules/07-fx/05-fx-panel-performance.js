@@ -40,14 +40,24 @@ function setRange(id, value) {
   if (id === 'fx-lyricglow') value = Math.min(0.85, Math.max(0, value));
   if (id === 'fx-lyricbgadapt') value = Math.min(1, Math.max(0, value));
   if (id === 'fx-coverres') value = normalizeCoverResolution(value);
+  if (id === 'fx-pcount') value = normalizeParticleCount(value);
+  if (id === 'fx-pdensity') value = normalizeParticleDensity(value);
   if (id === 'fx-glassaberration') value = normalizeControlGlassChromaticOffset(value);
   if (id === 'fx-lyriccustomlines') value = lyricCustomLineCountValue();
   if (id === 'fx-memory-interval' || id === 'fx-memory-threshold' || id === 'fx-bgcropx' || id === 'fx-bgcropy' || /^fx-sonic(?!we)/.test(id) || id === 'fx-sonicwegain') value = Math.round(Number(value) || 0);
+  if (id === 'fx-zoom') {
+    el.value = value;
+    var outZoom = el.parentElement.querySelector('output');
+    if (outZoom) outZoom.textContent = Number(value).toFixed(1);
+    return;
+  }
   el.value = value;
   var out = el.parentElement.querySelector('output');
-  if (out) out.textContent = id === 'fx-coverres'
+  if (out) out.textContent = id === 'fx-progressparticles'
+    ? String(Math.round(Number(value) || 0))
+    : id === 'fx-coverres'
     ? coverParticleCountLabel(value)
-    : (id === 'fx-lyricweight' || id === 'fx-lyriccustomlines' || id === 'fx-glassaberration' || id === 'fx-playlistblur' || id === 'fx-bgcropx' || id === 'fx-bgcropy' || id === 'fx-lyrictiltx' || id === 'fx-lyrictilty' || id === 'fx-shelfangle' || id === 'fx-shelfdetailanglex' || id === 'fx-shelfdetailangley' || id === 'fx-memory-interval' || id === 'fx-memory-threshold' || /^fx-sonic(?!we)/.test(id) || id === 'fx-sonicwegain' ? String(Math.round(Number(value) || 0)) : Number(value).toFixed(id === 'fx-lyricspacing' ? 3 : 2));
+    : (id === 'fx-pcount' ? Math.round(value * 100) + '%' : (id === 'fx-pdensity' ? Number(value).toFixed(2) + '×' : (id === 'fx-lyricweight' || id === 'fx-lyriccustomlines' || id === 'fx-glassaberration' || id === 'fx-playlistblur' || id === 'fx-bgcropx' || id === 'fx-bgcropy' || id === 'fx-lyrictiltx' || id === 'fx-lyrictilty' || id === 'fx-shelfangle' || id === 'fx-shelfdetailanglex' || id === 'fx-shelfdetailangley' || id === 'fx-memory-interval' || id === 'fx-memory-threshold' || /^fx-sonic(?!we)/.test(id) || id === 'fx-sonicwegain' ? String(Math.round(Number(value) || 0)) : Number(value).toFixed(id === 'fx-lyricspacing' ? 3 : 2))));
 }
 function updateDevelopmentFxControls() {
   [
@@ -55,7 +65,7 @@ function updateDevelopmentFxControls() {
     ['desktopLyricsClickThrough', 't-desktopLyricsClickThrough', '锁定后防误触；鼠标移到桌面歌词上按中键可锁定/解锁'],
     ['desktopLyricsCinema', 't-desktopLyricsCinema', '桌面歌词绑定鼓点电影震动，基础漂浮始终保留'],
     ['desktopLyricsHighlight', 't-desktopLyricsHighlight', '桌面歌词按播放进度高亮'],
-    ['wallpaperMode', 't-wallpaperMode', '把完整 Mineradio 放到 Windows 桌面；右上控制器可显示、隐藏桌面图标；Esc 退出；重启默认关闭']
+    ['wallpaperMode', 't-wallpaperMode', '把完整 Auroradio 放到 Windows 桌面；右上控制器可显示、隐藏桌面图标；Esc 退出；重启默认关闭']
   ].forEach(function (item) {
     var runtimeUnavailable = item[0] === 'wallpaperMode'
       && typeof desktopWallpaperRuntimeState !== 'undefined'
@@ -100,6 +110,44 @@ function updateDesktopLyricsFpsControls() {
   document.querySelectorAll('#desktop-lyrics-fps-seg [data-desktop-lyrics-fps]').forEach(function (btn) {
     btn.classList.toggle('active', normalizeDesktopLyricsFps(btn.getAttribute('data-desktop-lyrics-fps')) === fps);
   });
+}
+function updatePlayerShellStyleControls() {
+  fx.playerShellStyle = normalizePlayerShellStyle(fx.playerShellStyle);
+  document.body.classList.toggle('player-shell-borderless', fx.playerShellStyle === 'borderless');
+  document.querySelectorAll('#player-shell-style-seg [data-player-shell]').forEach(function (btn) {
+    btn.classList.toggle('active', normalizePlayerShellStyle(btn.getAttribute('data-player-shell')) === fx.playerShellStyle);
+  });
+}
+function updateProgressSparkDirectionControls() {
+  fx.progressSparkDirection = normalizeProgressSparkDirection(fx.progressSparkDirection);
+  document.querySelectorAll('#progress-spark-direction-seg [data-spark-direction]').forEach(function (btn) {
+    btn.classList.toggle('active', normalizeProgressSparkDirection(btn.getAttribute('data-spark-direction')) === fx.progressSparkDirection);
+  });
+}
+function updateProgressStyleControls() {
+  fx.progressStyle = normalizeProgressStyle(fx.progressStyle);
+  document.body.classList.toggle('progress-style-laser', fx.progressStyle === 'laser');
+  document.body.classList.toggle('progress-style-dots', fx.progressStyle === 'dots');
+  document.querySelectorAll('#progress-style-seg [data-progress-style]').forEach(function (btn) {
+    btn.classList.toggle('active', normalizeProgressStyle(btn.getAttribute('data-progress-style')) === fx.progressStyle);
+  });
+  var laser = document.getElementById('progress-laser');
+  if (fx.progressStyle === 'laser') {
+    var bar = document.getElementById('progress-bar');
+    if (bar && !laser) {
+      laser = document.createElement('div');
+      laser.id = 'progress-laser';
+      laser.setAttribute('aria-hidden', 'true');
+      var head = document.createElement('span');
+      head.className = 'progress-laser-head';
+      laser.appendChild(head);
+      bar.appendChild(laser);
+    }
+  } else if (laser) laser.parentNode.removeChild(laser);
+  setFxPanelControlsHidden(['fx-progressparticles', 'fx-progressbright', 'fx-progresssize', 'progress-spark-direction-seg'], fx.progressStyle !== 'dots');
+  updateProgressSparkDirectionControls();
+  if (typeof progressFlowSetActive === 'function') progressFlowSetActive(fx.progressStyle === 'dots');
+  if (typeof updatePlaybackProgressUi === 'function') updatePlaybackProgressUi();
 }
 function updateWallpaperFpsControls() {
   fx.wallpaperFps = normalizeWallpaperFps(fx.wallpaperFps);
@@ -176,13 +224,18 @@ function setFxPanelControlsHidden(ids, hidden) {
     if (node) node.classList.toggle('fx-sonic-hidden', !!hidden);
   });
 }
+var PHOENIX_FLIGHT_CONTROL_IDS = ['phoenix-flight-modes', 'fx-flightspeed', 'fx-flightamp', 'fx-flightsize', 'fx-flighttilt', 'fx-flightspin', 'fx-phoenixx', 'fx-phoenixy', 't-lyricAvoidPhoenix', 'phoenix-color-modes', 'phoenix-color-picker-row', 'phoenix-rhythm-modes'];
 function updateSonicSeriesControlVisibility() {
   var preset = Number(fx && fx.preset) || 0;
   var original = preset === 7;
   var workshop = preset === 8;
   setFxPanelControlsHidden(SONIC_ORIGINAL_FX_CONTROL_IDS, !original);
   setFxPanelControlsHidden(SONIC_WORKSHOP_FX_CONTROL_IDS, !workshop);
+  setFxPanelControlsHidden(PHOENIX_FLIGHT_CONTROL_IDS, preset !== 9);
   setFxPanelControlsHidden(['fx-lyricbgadapt-row', 'fx-lyricbgadapt'], false);
+  if (preset === 9 && typeof updatePhoenixFlightControlsUI === 'function') updatePhoenixFlightControlsUI();
+  if (preset === 9 && typeof updatePhoenixColorControlsUI === 'function') updatePhoenixColorControlsUI();
+  if (preset === 9 && typeof updatePhoenixRhythmControlsUI === 'function') updatePhoenixRhythmControlsUI();
 }
 function setPerformanceBackgroundMode(mode, silent) {
   var next = normalizePerformanceBackgroundMode(mode, false);
@@ -224,6 +277,7 @@ function updateFxInputs() {
   normalizeDevelopmentLockedFxState();
   applyShelfCameraDefaultAngle(false);
   setRange('fx-intensity', fx.intensity);
+  setRange('fx-zoom', fx.zoomRadius);
   setRange('fx-cineshake', fx.cinemaShake);
   setRange('fx-depth', fx.depth);
   setRange('fx-coverres', fx.coverResolution);
@@ -270,6 +324,9 @@ function updateFxInputs() {
   setRange('fx-playlistdensity', fx.playlistPanelGlassDensity);
   setRange('fx-playlistopen', fx.playlistPanelOpenDuration);
   setRange('fx-playlistclose', fx.playlistPanelCloseDuration);
+  setRange('fx-progressparticles', fx.progressParticleAmount == null ? 110 : fx.progressParticleAmount);
+  setRange('fx-progressbright', fx.progressParticleBrightness == null ? 1 : fx.progressParticleBrightness);
+  setRange('fx-progresssize', fx.progressParticleSize == null ? 1 : fx.progressParticleSize);
   setRange('fx-desktoplyricssize', fx.desktopLyricsSize);
   setRange('fx-desktoplyricsopacity', fx.desktopLyricsOpacity);
   setRange('fx-desktoplyricsy', fx.desktopLyricsY);
@@ -323,13 +380,23 @@ function updateFxInputs() {
   setRange('fx-lyricz', fx.lyricOffsetZ);
   setRange('fx-lyrictiltx', fx.lyricTiltX);
   setRange('fx-lyrictilty', fx.lyricTiltY);
+  setRange('fx-pdensity', fx.particleDensity);
+  setRange('fx-pcount', fx.particleCount);
   setRange('fx-point', fx.point);
   setRange('fx-speed', fx.speed);
   setRange('fx-twist', fx.twist);
   setRange('fx-color', fx.color);
+  setRange('fx-bright', fx.brightness);
   setRange('fx-bloom', fx.bloomStrength);
   setRange('fx-scatter', fx.scatter);
   setRange('fx-bgfade', fx.bgFade);
+  setRange('fx-flightspeed', fx.phoenixFlightSpeed);
+  setRange('fx-flightamp', fx.phoenixFlightAmp);
+  setRange('fx-flightsize', fx.phoenixFlightSize);
+  setRange('fx-flighttilt', fx.phoenixFlightTilt);
+  setRange('fx-flightspin', fx.phoenixFlightSpin);
+  setRange('fx-phoenixx', fx.phoenixPosX);
+  setRange('fx-phoenixy', fx.phoenixPosY);
   updateLyricGlowControls();
   applyPlaylistPanelFxSettings();
   // 同步开关
@@ -337,6 +404,12 @@ function updateFxInputs() {
   var floatToggle = document.getElementById('t-float');
   if (floatToggle) floatToggle.classList.toggle('on', fx.floatLayer);
   document.getElementById('t-cinema').classList.toggle('on', fx.cinema);
+  var zoomFixedToggle = document.getElementById('t-zoomFixed');
+  if (zoomFixedToggle) zoomFixedToggle.classList.toggle('on', fx.zoomFixed === true);
+  var lyricAvoidPhoenixToggle = document.getElementById('t-lyricAvoidPhoenix');
+  if (lyricAvoidPhoenixToggle) lyricAvoidPhoenixToggle.classList.toggle('on', fx.lyricAvoidPhoenix !== false);
+  var lyricKeepLevelToggle = document.getElementById('t-lyricKeepLevel');
+  if (lyricKeepLevelToggle) lyricKeepLevelToggle.classList.toggle('on', fx.lyricKeepLevel !== false);
   var lyricGlowToggle = document.getElementById('t-lyricGlow');
   if (lyricGlowToggle) lyricGlowToggle.classList.toggle('on', fx.lyricGlow);
   var lyricGlowBeatToggle = document.getElementById('t-lyricGlowBeat');
@@ -366,6 +439,9 @@ function updateFxInputs() {
   var desktopLyricsHighlightToggle = document.getElementById('t-desktopLyricsHighlight');
   if (desktopLyricsHighlightToggle) desktopLyricsHighlightToggle.classList.toggle('on', fx.desktopLyricsHighlight === true);
   updateDesktopLyricsFpsControls();
+  updatePlayerShellStyleControls();
+  updateProgressStyleControls();
+  updateProgressSparkDirectionControls();
   updateWallpaperFpsControls();
   var wallpaperModeToggle = document.getElementById('t-wallpaperMode');
   if (wallpaperModeToggle) wallpaperModeToggle.classList.toggle('on', fx.wallpaperMode);
@@ -479,6 +555,8 @@ function resetFxSliderValue(id, key, btn) {
   }
   setRange(id, fx[key]);
   if (key === 'coverResolution') applyCoverParticleResolution(fx[key], { reload: true });
+  if (key === 'zoomRadius' && typeof applyFxZoomRadiusToOrbit === 'function') applyFxZoomRadiusToOrbit({ forgetPreset: true });
+  if (key === 'particleDensity' && typeof applyParticleDensity === 'function') applyParticleDensity(fx[key]);
   if (key === 'backgroundOpacity' || key === 'windowBackgroundOpacity' || key === 'backgroundGlassOpacity' || key === 'backgroundMediaCropX' || key === 'backgroundMediaCropY' || key === 'backgroundMediaZoom') updateCustomBackgroundControls();
   if (key === 'controlGlassChromaticOffset') applyControlGlassChromaticOffset();
   if (/^playlistPanel/.test(key)) applyPlaylistPanelFxSettings();
@@ -838,6 +916,8 @@ function relabelFxPanelControls() {
   setFxSliderLabel('fx-shelfsummonparallax', '唤出视差');
   setFxSliderLabel('fx-shelfcamenter', '镜头进入速度');
   setFxSliderLabel('fx-shelfcamexit', '镜头离开速度');
+  setFxSliderLabel('fx-pdensity', '粒子密度');
+  setFxSliderLabel('fx-pcount', '粒子数量');
   setFxSliderLabel('fx-point', '粒子尺寸');
   setFxSliderLabel('fx-speed', '运动速度');
   setFxSliderLabel('fx-twist', '粒子扭曲');

@@ -14,7 +14,7 @@ const requestedWorkshopId = workshopArgument ? workshopArgument.split('=')[1] : 
 const repeat = Math.max(1, Math.min(10, Number(repeatArgument && repeatArgument.split('=')[1]) || 3));
 const closeApp = process.argv.includes('--close-app');
 const runId = `${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${process.pid}-${Math.random().toString(16).slice(2, 10)}`;
-const outputRoot = path.join('D:\\MineradioCache\\we-normal-user-qa', runId);
+const outputRoot = path.join('D:\\AuroradioCache\\we-normal-user-qa', runId);
 const resultPath = path.join(outputRoot, 'result.json');
 const windowListScript = path.join(__dirname, 'check-wallpaper-engine-window-list.ps1');
 
@@ -116,7 +116,7 @@ async function waitForCdpTarget(timeoutMs = 60000) {
     }
     await sleep(250);
   }
-  throw new Error(`Timed out waiting for Mineradio CDP on ${port}: ${lastError && lastError.message || 'no page target'}`);
+  throw new Error(`Timed out waiting for Auroradio CDP on ${port}: ${lastError && lastError.message || 'no page target'}`);
 }
 
 const STATE_EXPRESSION = `(async () => {
@@ -238,11 +238,11 @@ function listWindows(titlePrefix) {
 }
 
 function listExactSourceWindows() {
-  return listWindows('Mineradio Wallpaper ');
+  return listWindows('Auroradio Wallpaper ');
 }
 
 function listDwmSurfaceWindows() {
-  return listWindows('Mineradio WE ');
+  return listWindows('Auroradio WE ');
 }
 
 async function waitForExactSourceWindowCount(expected, timeoutMs = 20000) {
@@ -253,7 +253,7 @@ async function waitForExactSourceWindowCount(expected, timeoutMs = 20000) {
     if (windows.length === expected) return windows;
     await sleep(250);
   }
-  throw new Error(`Exact Mineradio Wallpaper window count stayed ${windows.length}, expected ${expected}`);
+  throw new Error(`Exact Auroradio Wallpaper window count stayed ${windows.length}, expected ${expected}`);
 }
 
 function numberNear(actual, expected, tolerance, label) {
@@ -302,9 +302,9 @@ function assertControlGlassGeometry(state, nativeWindows, round) {
   numberNear(sampler.videoCssWidth, state.innerWidth, 1.5, `round ${round}: full-frame sampler video width`);
   numberNear(sampler.videoCssHeight, state.innerHeight, 1.5, `round ${round}: full-frame sampler video height`);
 
-  const base = nativeWindows.find((item) => item.title === 'Mineradio WE DWM Surface');
+  const base = nativeWindows.find((item) => item.title === 'Auroradio WE DWM Surface');
   assert(base && base.rect && base.visible, `round ${round}: base DWM window is missing or hidden`);
-  assert(!nativeWindows.some((item) => item.title === 'Mineradio WE Glass Refraction'),
+  assert(!nativeWindows.some((item) => item.title === 'Auroradio WE Glass Refraction'),
     `round ${round}: the removed second transparent native layer is still present`);
 }
 
@@ -351,14 +351,14 @@ function assertNativeWindows(state, round) {
   const exactWindows = listExactSourceWindows();
   assert.strictEqual(exactWindows.length, 1,
     `round ${round}: expected one exact source window, found ${exactWindows.length}`);
-  assert.strictEqual(exactWindows[0].title, `Mineradio Wallpaper ${state.sessionId}`,
+  assert.strictEqual(exactWindows[0].title, `Auroradio Wallpaper ${state.sessionId}`,
     `round ${round}: old source window survived replacement`);
   assert(exactWindows[0].visible && exactWindows[0].rect,
     `round ${round}: exact Wallpaper Engine source is missing or hidden`);
 
   const dwmWindows = listDwmSurfaceWindows();
-  const baseWindows = dwmWindows.filter((item) => item.title === 'Mineradio WE DWM Surface');
-  const glassWindows = dwmWindows.filter((item) => item.title === 'Mineradio WE Glass Refraction');
+  const baseWindows = dwmWindows.filter((item) => item.title === 'Auroradio WE DWM Surface');
+  const glassWindows = dwmWindows.filter((item) => item.title === 'Auroradio WE Glass Refraction');
   assert.strictEqual(baseWindows.length, 1, `round ${round}: expected one base DWM surface, found ${baseWindows.length}`);
   assert.strictEqual(glassWindows.length, 0, `round ${round}: removed transparent native layer count is ${glassWindows.length}`);
   const base = baseWindows[0];

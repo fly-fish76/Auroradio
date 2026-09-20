@@ -4,7 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const qqVip = require('../qq-vip-api');
+const qqVip = require('../services/qq-vip-api');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -569,8 +569,8 @@ function testDesktopReauthCookieSelectionAndBudgets() {
 function testPackagingIncludesQQVipModule() {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const files = pkg && pkg.build && pkg.build.files || [];
-  assert(files.includes('*-api.js'), 'Electron package must include provider API modules');
-  assert(/-api\.js$/.test(path.basename(require.resolve('../qq-vip-api'))));
+  assert(files.includes('services/**/*'), 'Electron package must include provider API modules (services dir)');
+  assert(/-api\.js$/.test(path.basename(require.resolve('../services/qq-vip-api'))));
 }
 
 async function main() {

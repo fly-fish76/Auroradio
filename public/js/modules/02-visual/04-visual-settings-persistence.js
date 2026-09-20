@@ -41,6 +41,12 @@ function clampRange(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function normalizeCoverResolution(v) {
   return clampRange(Number(v) || 1, 0.75, 1.55);
 }
+function normalizeParticleCount(v) {
+  return clampRange(Number(v) || 1, 0.1, 1);
+}
+function normalizeParticleDensity(v) {
+  return clampRange(Number(v) || 1, 1, 4);
+}
 function normalizePerformanceBackgroundMode(v, liveKeepFallback) {
   var value = String(v || '');
   if (value === 'keep' || liveKeepFallback === true) return 'keep';
@@ -233,13 +239,36 @@ function readSavedLyricLayout() {
     var savedShelfPinnedOpen = savedShelfMode === 'side' && savedShelfPresence === 'always' && raw.shelfPinnedOpen === true;
     return {
       preset: savedPreset,
+      perPresetSplit: raw.perPresetSplit === true,
+      presetOverlay: -1, // 叠加功能已停用 (FX_OVERLAY_DISABLED): 恢复时强制无叠加, 旧状态一并清除
+      // 凤凰飞行轨迹 (旧单选 phoenixFlightMode 自动迁移)
+      phoenixFlightPath: /^(none|circle|patrol)$/.test(String(raw.phoenixFlightPath || '')) ? raw.phoenixFlightPath
+        : (raw.phoenixFlightMode === 'circle' ? 'circle' : raw.phoenixFlightMode === 'patrol' ? 'patrol' : fxDefaults.phoenixFlightPath),
+      phoenixFlightDive: raw.phoenixFlightDive === true || (raw.phoenixFlightPath == null && raw.phoenixFlightMode === 'dive'),
+      phoenixFlightShowPath: raw.phoenixFlightShowPath === true,
+      phoenixFlightSpeed: layoutNumber(raw.phoenixFlightSpeed, fxDefaults.phoenixFlightSpeed, 0.3, 2.5),
+      phoenixFlightAmp: layoutNumber(raw.phoenixFlightAmp, fxDefaults.phoenixFlightAmp, 0.3, 1.8),
+      phoenixFlightSize: layoutNumber(raw.phoenixFlightSize, fxDefaults.phoenixFlightSize, 1, 5),
+      phoenixFlightTilt: layoutNumber(raw.phoenixFlightTilt, fxDefaults.phoenixFlightTilt, 0, 90),
+      phoenixFlightSpin: layoutNumber(raw.phoenixFlightSpin, fxDefaults.phoenixFlightSpin, 0, 90),
+      phoenixPosX: layoutNumber(raw.phoenixPosX, fxDefaults.phoenixPosX, -8, 8),
+      phoenixPosY: layoutNumber(raw.phoenixPosY, fxDefaults.phoenixPosY, -2.5, 2.5),
+      lyricAvoidPhoenix: raw.lyricAvoidPhoenix !== false,
+      zoomFixed: raw.zoomFixed === true,
+      zoomRadius: layoutNumber(raw.zoomRadius, fxDefaults.zoomRadius, 0.1, 120),
       intensity: layoutNumber(raw.intensity, fxDefaults.intensity, 0.2, 1.6),
+      particleCount: normalizeParticleCount(raw.particleCount == null ? fxDefaults.particleCount : raw.particleCount),
+      particleDensity: normalizeParticleDensity(raw.particleDensity == null ? fxDefaults.particleDensity : raw.particleDensity),
       cinemaShake: layoutNumber(raw.cinemaShake, fxDefaults.cinemaShake, 0, 1.8),
       depth: layoutNumber(raw.depth, fxDefaults.depth, 0.2, 1.8),
       point: layoutNumber(raw.point, fxDefaults.point, 0.5, 2.2),
       speed: layoutNumber(raw.speed, fxDefaults.speed, 0.2, 2.5),
       twist: layoutNumber(raw.twist, fxDefaults.twist, 0, 0.6),
       color: layoutNumber(raw.color, fxDefaults.color, 0.5, 2.0),
+      brightness: layoutNumber(raw.brightness, fxDefaults.brightness, 0, 10),
+      phoenixColorMode: /^(solid|cover)$/.test(String(raw.phoenixColorMode)) ? raw.phoenixColorMode : 'default',
+      phoenixSolidColor: normalizeHexColor(raw.phoenixSolidColor || fxDefaults.phoenixSolidColor, fxDefaults.phoenixSolidColor),
+      phoenixRhythmMode: /^(breath|sweep)$/.test(String(raw.phoenixRhythmMode)) ? raw.phoenixRhythmMode : 'beat',
       scatter: layoutNumber(raw.scatter, fxDefaults.scatter, 0, 0.5),
       bgFade: layoutNumber(raw.bgFade, fxDefaults.bgFade, 0, 1.2),
       bloomStrength: layoutNumber(raw.bloomStrength, fxDefaults.bloomStrength, 0, 1.6),
@@ -251,6 +280,7 @@ function readSavedLyricLayout() {
       lyricOffsetZ: layoutNumber(raw.lyricOffsetZ, 0, -3.2, 3.2),
       lyricTiltX: layoutNumber(raw.lyricTiltX, 0, -84, 84),
       lyricTiltY: layoutNumber(raw.lyricTiltY, 0, -84, 84),
+      lyricKeepLevel: raw.lyricKeepLevel !== false,
       lyricCameraLock: !!raw.lyricCameraLock,
       lyricColorMode: raw.lyricColorMode === 'custom' ? 'custom' : 'auto',
       lyricColor: normalizeHexColor(raw.lyricColor || '#a9b8c8'),
@@ -328,6 +358,13 @@ function readSavedLyricLayout() {
       desktopLyricsCinema: desktopLyricsSchemaReady ? raw.desktopLyricsCinema !== false : fxDefaults.desktopLyricsCinema,
       desktopLyricsHighlight: desktopLyricsSchemaReady ? raw.desktopLyricsHighlight === true : fxDefaults.desktopLyricsHighlight,
       desktopLyricsFps: desktopLyricsSchemaReady ? normalizeDesktopLyricsFps(raw.desktopLyricsFps) : fxDefaults.desktopLyricsFps,
+      playerShellStyle: normalizePlayerShellStyle(raw.playerShellStyle),
+      progressStyle: normalizeProgressStyle(raw.progressStyle),
+      progressParticleAmount: normalizeProgressParticleAmount(raw.progressParticleAmount),
+      progressParticleBrightness: normalizeProgressParticleBrightness(raw.progressParticleBrightness),
+      progressParticleSize: normalizeProgressParticleSize(raw.progressParticleSize),
+      progressThickness: normalizeProgressThickness(raw.progressThickness),
+      progressSparkDirection: normalizeProgressSparkDirection(raw.progressSparkDirection),
       performanceBackground: normalizePerformanceBackgroundMode(raw.performanceBackground, raw.liveBackgroundKeep === true),
       performanceQuality: normalizePerformanceQuality(raw.performanceQuality),
       foregroundFpsMode: normalizeForegroundFpsMode(raw.foregroundFpsMode === 'adaptive' ? 'vsync' : raw.foregroundFpsMode),
@@ -555,6 +592,13 @@ function currentFxAutosaveTouchedKeys(reason, payload) {
     desktopLyrics: ['desktopLyrics'],
     desktopLyricsClickThrough: ['desktopLyricsClickThrough'],
     desktopLyricsFps: ['desktopLyricsFps'],
+    playerShellStyle: ['playerShellStyle'],
+    progressStyle: ['progressStyle'],
+    progressParticleAmount: ['progressParticleAmount'],
+    progressParticleBrightness: ['progressParticleBrightness'],
+    progressParticleSize: ['progressParticleSize'],
+    progressThickness: ['progressThickness'],
+    progressSparkDirection: ['progressSparkDirection'],
     performanceBackground: ['performanceBackground', 'liveBackgroundKeep'],
     performanceQuality: ['performanceQuality'],
     liveBackgroundKeep: ['performanceBackground', 'liveBackgroundKeep'],
@@ -703,6 +747,8 @@ function currentFxAutosaveCriticalPatch() {
 function saveLyricLayout(opts) {
   opts = opts || {};
   if (opts.user === true) markCurrentFxAutosaveUserDirty(opts.reason || 'layout');
+  // 分预设模式: 把当前核心视觉参数实时记到当前预设名下
+  if (typeof fxCaptureForSplitIfOn === 'function') fxCaptureForSplitIfOn();
   try {
     if (lyricLayoutSaveTimer) {
       clearTimeout(lyricLayoutSaveTimer);
@@ -720,13 +766,34 @@ function saveLyricLayout(opts) {
       visualPresetSchema: VISUAL_PRESET_SCHEMA,
       desktopLyricsSchema: 'desktop-lyrics-v3',
       preset: presetForSave,
+      perPresetSplit: fx.perPresetSplit === true,
+      presetOverlay: clampRange(isFinite(Number(fx.presetOverlay)) ? Math.round(Number(fx.presetOverlay)) : -1, -1, 9),
+      phoenixFlightPath: /^(none|circle|patrol)$/.test(String(fx.phoenixFlightPath || '')) ? fx.phoenixFlightPath : fxDefaults.phoenixFlightPath,
+      phoenixFlightDive: fx.phoenixFlightDive === true,
+      phoenixFlightShowPath: fx.phoenixFlightShowPath === true,
+      phoenixFlightSpeed: layoutNumber(fx.phoenixFlightSpeed, fxDefaults.phoenixFlightSpeed, 0.3, 2.5),
+      phoenixFlightAmp: layoutNumber(fx.phoenixFlightAmp, fxDefaults.phoenixFlightAmp, 0.3, 1.8),
+      phoenixFlightSize: layoutNumber(fx.phoenixFlightSize, fxDefaults.phoenixFlightSize, 1, 5),
+      phoenixFlightTilt: layoutNumber(fx.phoenixFlightTilt, fxDefaults.phoenixFlightTilt, 0, 90),
+      phoenixFlightSpin: layoutNumber(fx.phoenixFlightSpin, fxDefaults.phoenixFlightSpin, 0, 90),
+      phoenixPosX: layoutNumber(fx.phoenixPosX, fxDefaults.phoenixPosX, -8, 8),
+      phoenixPosY: layoutNumber(fx.phoenixPosY, fxDefaults.phoenixPosY, -2.5, 2.5),
+      lyricAvoidPhoenix: fx.lyricAvoidPhoenix !== false,
+      zoomFixed: fx.zoomFixed === true,
+      zoomRadius: layoutNumber(fx.zoomRadius, fxDefaults.zoomRadius, 0.1, 120),
       intensity: layoutNumber(fx.intensity, fxDefaults.intensity, 0.2, 1.6),
+      particleCount: normalizeParticleCount(fx.particleCount),
+      particleDensity: normalizeParticleDensity(fx.particleDensity),
       cinemaShake: layoutNumber(fx.cinemaShake, fxDefaults.cinemaShake, 0, 1.8),
       depth: layoutNumber(fx.depth, fxDefaults.depth, 0.2, 1.8),
       point: layoutNumber(fx.point, fxDefaults.point, 0.5, 2.2),
       speed: layoutNumber(fx.speed, fxDefaults.speed, 0.2, 2.5),
       twist: layoutNumber(fx.twist, fxDefaults.twist, 0, 0.6),
       color: layoutNumber(fx.color, fxDefaults.color, 0.5, 2.0),
+      brightness: layoutNumber(fx.brightness, fxDefaults.brightness, 0, 10),
+      phoenixColorMode: /^(solid|cover)$/.test(String(fx.phoenixColorMode)) ? fx.phoenixColorMode : 'default',
+      phoenixSolidColor: normalizeHexColor(fx.phoenixSolidColor || fxDefaults.phoenixSolidColor, fxDefaults.phoenixSolidColor),
+      phoenixRhythmMode: /^(breath|sweep)$/.test(String(fx.phoenixRhythmMode)) ? fx.phoenixRhythmMode : 'beat',
       scatter: layoutNumber(fx.scatter, fxDefaults.scatter, 0, 0.5),
       bgFade: layoutNumber(fx.bgFade, fxDefaults.bgFade, 0, 1.2),
       bloomStrength: layoutNumber(fx.bloomStrength, fxDefaults.bloomStrength, 0, 1.6),
@@ -738,6 +805,7 @@ function saveLyricLayout(opts) {
       lyricOffsetZ: layoutNumber(fx.lyricOffsetZ, 0, -3.2, 3.2),
       lyricTiltX: layoutNumber(fx.lyricTiltX, 0, -84, 84),
       lyricTiltY: layoutNumber(fx.lyricTiltY, 0, -84, 84),
+      lyricKeepLevel: fx.lyricKeepLevel !== false,
       lyricCameraLock: !!fx.lyricCameraLock,
       lyricColorMode: fx.lyricColorMode === 'custom' ? 'custom' : 'auto',
       lyricColor: normalizeHexColor(fx.lyricColor || '#a9b8c8'),
@@ -814,6 +882,13 @@ function saveLyricLayout(opts) {
       desktopLyricsCinema: fx.desktopLyricsCinema !== false,
       desktopLyricsHighlight: fx.desktopLyricsHighlight === true,
       desktopLyricsFps: normalizeDesktopLyricsFps(fx.desktopLyricsFps),
+      playerShellStyle: normalizePlayerShellStyle(fx.playerShellStyle),
+      progressStyle: normalizeProgressStyle(fx.progressStyle),
+      progressParticleAmount: normalizeProgressParticleAmount(fx.progressParticleAmount),
+      progressParticleBrightness: normalizeProgressParticleBrightness(fx.progressParticleBrightness),
+      progressParticleSize: normalizeProgressParticleSize(fx.progressParticleSize),
+      progressThickness: normalizeProgressThickness(fx.progressThickness),
+      progressSparkDirection: normalizeProgressSparkDirection(fx.progressSparkDirection),
       performanceBackground: normalizePerformanceBackgroundMode(fx.performanceBackground, fx.liveBackgroundKeep === true),
       performanceQuality: normalizePerformanceQuality(fx.performanceQuality),
       foregroundFpsMode: normalizeForegroundFpsMode(fx.foregroundFpsMode),
@@ -973,6 +1048,34 @@ function normalizeDesktopLyricsFps(value) {
   if (n <= 45) return 30;
   if (n <= 90) return 60;
   return 120;
+}
+function normalizePlayerShellStyle(value) {
+  return value === 'borderless' ? 'borderless' : 'glass';
+}
+function normalizeProgressStyle(value) {
+  return (value === 'laser' || value === 'dots') ? value : 'default';
+}
+function normalizeProgressParticleAmount(value) {
+  var n = Number(value);
+  if (!isFinite(n) || n < 0) return 100;
+  // 旧版先是 0.2~20 密度倍率、后是 10~15000 绝对数量，统一压进 0~500 密度刻度
+  if (n <= 20) return clampRange(Math.round(n * 75), 0, 500);
+  return clampRange(Math.round(n), 0, 500);
+}
+function normalizeProgressThickness(value) {
+  var n = Number(value);
+  return isFinite(n) && n > 0 ? clampRange(n, 0.5, 5) : 1;
+}
+function normalizeProgressParticleBrightness(value) {
+  var n = Number(value);
+  return isFinite(n) && n >= 0 ? clampRange(n, 0, 10) : 1;
+}
+function normalizeProgressParticleSize(value) {
+  var n = Number(value);
+  return isFinite(n) && n > 0 ? clampRange(n, 0.5, 2.2) : 1;
+}
+function normalizeProgressSparkDirection(value) {
+  return value === 'left' ? 'left' : 'down';
 }
 function normalizeShelfCameraMode(value) {
   return String(value || '') === 'static' ? 'static' : 'dynamic';

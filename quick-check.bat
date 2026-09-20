@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul
-title Mineradio Quick Check
+title Auroradio Quick Check
 
 set "APP_DIR=%~dp0"
 cd /d "%APP_DIR%" || goto :fail
@@ -19,11 +19,11 @@ if /I "%~1"=="electron" set "CHECK_ARGS=--electron"
 if /I "%~1"=="--electron" set "CHECK_ARGS=--electron"
 
 echo.
-echo Mineradio quick check
+echo Auroradio quick check
 echo App: %APP_DIR%
 echo Default mode is fast/static and does not load the player UI.
 echo Use quick-check.bat full for the hidden Electron runtime smoke check.
-echo Use start-mineradio.bat to launch the player.
+echo Use start-auroradio.bat to launch the player.
 echo.
 node "%APP_DIR%scripts\quick-check.js" %CHECK_ARGS%
 set "CHECK_EXIT=%ERRORLEVEL%"

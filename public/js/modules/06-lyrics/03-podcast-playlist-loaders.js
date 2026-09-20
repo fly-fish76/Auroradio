@@ -90,6 +90,8 @@ async function loadPodcastRadioIntoQueue(id, autoplay, title) {
 }
 function playlistQueueSource(id) {
   var raw = String(id || '');
+  if (raw.indexOf('lxsl:') === 0) return { provider: 'lxsl', id: raw.slice(5), requestId: raw };
+  if (raw.indexOf('local:') === 0) return { provider: 'local', id: raw.slice(6), requestId: raw };
   if (raw.indexOf('qq:') === 0) return { provider: 'qq', id: raw.slice(3), requestId: raw };
   if (raw.indexOf('kugou:') === 0) return { provider: 'kugou', id: raw.slice(6), requestId: raw };
   if (raw.indexOf('qishui:') === 0) return { provider: 'qishui', id: raw.slice(7), requestId: raw };
@@ -217,6 +219,23 @@ async function loadPlaylistIntoQueueById(id, autoplay, title, opts) {
   showLoading();
   cancelPlaylistQueueHydration('new-playlist');
   var source = playlistQueueSource(id);
+  // 本地歌单: 从 localStorage 全量载入, 复用 seedTracks 通道
+  // (仅首次进入; 递归时已带 seedTracks, 直接走下方通用流程, 避免无限递归)
+  if (source.provider === 'local' && !(Array.isArray(opts.seedTracks) && opts.seedTracks.length)) {
+    var localSongs = (typeof getLocalPlaylistSongs === 'function' ? getLocalPlaylistSongs(source.id) : []).map(cloneSong);
+    if (!localSongs.length) {
+      showToast('本地歌单为空');
+      hideLoading();
+      return false;
+    }
+    return loadPlaylistIntoQueueById(id, autoplay, title, Object.assign({}, opts, {
+      seedTracks: localSongs,
+      total: localSongs.length,
+      nextOffset: localSongs.length,
+      hasMore: false,
+      playlist: { trackCount: localSongs.length },
+    }));
+  }
   var token = (queueHydrationState && queueHydrationState.token || 0) + 1;
   var r = null;
   var seedTracks = Array.isArray(opts.seedTracks) && opts.seedTracks.length ? opts.seedTracks.map(cloneSong) : [];

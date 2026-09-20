@@ -50,7 +50,7 @@ function releaseStartupFastSkipPreload() {
   return true;
 }
 
-function initMineradioSplashWebgl(canvas) {
+function initAuroradioSplashWebgl(canvas) {
   var gl = null;
   try {
     gl = canvas.getContext('webgl', {
@@ -222,7 +222,7 @@ function initMineradioSplashWebgl(canvas) {
   return true;
 }
 
-function drawMineradioSplashWebgl(elapsed) {
+function drawAuroradioSplashWebgl(elapsed) {
   var gl = splashGl;
   if (!gl || !splashGlProgram || !splashGlUniforms) return;
   gl.viewport(0, 0, splashCanvas.width, splashCanvas.height);
@@ -235,10 +235,10 @@ function drawMineradioSplashWebgl(elapsed) {
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
-(function initMineradioSplashCanvas() {
+(function initAuroradioSplashCanvas() {
   splashCanvas = document.getElementById('splash-canvas');
   if (!splashCanvas) return;
-  if (!reduceSplashMotion && initMineradioSplashWebgl(splashCanvas)) {
+  if (!reduceSplashMotion && initAuroradioSplashWebgl(splashCanvas)) {
     splashCtx = null;
   } else {
     splashCtx = splashCanvas.getContext('2d');
@@ -303,15 +303,15 @@ function drawMineradioSplashWebgl(elapsed) {
   }
   resize();
   window.addEventListener('resize', resize);
-  drawMineradioSplash();
+  drawAuroradioSplash();
 })();
 
-function drawMineradioSplash() {
+function drawAuroradioSplash() {
   if (!splashAnimating || (!splashCtx && !splashGl)) return;
-  requestAnimationFrame(drawMineradioSplash);
+  requestAnimationFrame(drawAuroradioSplash);
   var elapsed = splashTimelineElapsed((performance.now() - splashStartedAt) / 1000);
   if (splashGl && splashGlProgram) {
-    drawMineradioSplashWebgl(elapsed);
+    drawAuroradioSplashWebgl(elapsed);
     return;
   }
   splashCtx.clearRect(0, 0, splashW, splashH);
@@ -467,7 +467,7 @@ function drawMineradioSplash() {
   splashCtx.restore();
 }
 
-function playMineradioIntroSound() {
+function playAuroradioIntroSound() {
   if (splashSoundPlayed) return;
   try {
     var AudioContextCtor = window.AudioContext || window.webkitAudioContext;
@@ -476,7 +476,7 @@ function playMineradioIntroSound() {
     splashAudioCtx = ctx;
     if (ctx.state === 'suspended' && ctx.resume) {
       ctx.resume().then(function () {
-        if (!splashSoundPlayed) playMineradioIntroSound();
+        if (!splashSoundPlayed) playAuroradioIntroSound();
       }).catch(function () { });
       if (ctx.state === 'suspended') return;
     }
@@ -563,7 +563,7 @@ function armSplashSoundFallback() {
   if (splashSoundFallbackArmed) return;
   splashSoundFallbackArmed = true;
   function unlock() {
-    if (!splashSoundPlayed) playMineradioIntroSound();
+    if (!splashSoundPlayed) playAuroradioIntroSound();
     document.removeEventListener('pointerdown', unlock, true);
     document.removeEventListener('keydown', unlock, true);
   }
@@ -649,7 +649,7 @@ function markSplashReadyToEnter() {
   s.classList.add('ready');
   s.setAttribute('role', 'button');
   s.setAttribute('tabindex', '0');
-  s.setAttribute('aria-label', '点击进入 Mineradio');
+  s.setAttribute('aria-label', '点击进入 Auroradio');
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -663,7 +663,7 @@ document.addEventListener('DOMContentLoaded', function () {
   armSplashSoundFallback();
   prewarmHomeWallpaperPreview();
   function requestSplashEnter() {
-    playMineradioIntroSound();
+    playAuroradioIntroSound();
     if (splashReadyToEnter) dismissSplash();
   }
   s.addEventListener('click', requestSplashEnter);
@@ -679,6 +679,6 @@ document.addEventListener('DOMContentLoaded', function () {
     splashTimer = setTimeout(markSplashReadyToEnter, 650);
     return;
   }
-  playMineradioIntroSound();
+  playAuroradioIntroSound();
   splashTimer = setTimeout(markSplashReadyToEnter, 1500);
 });

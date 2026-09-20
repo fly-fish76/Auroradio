@@ -1,7 +1,7 @@
 /**
- * Sonic Topography visual preset for Mineradio.
+ * Sonic Topography visual preset for Auroradio.
  * Visual algorithm ported from yin-yizhen/sonic-topography 1.1.1 (commit 3ff303e).
- * Only the visual layer is embedded here; player, login and server logic stay Mineradio-native.
+ * Only the visual layer is embedded here; player, login and server logic stay Auroradio-native.
  */
 (function (global) {
   'use strict';
@@ -234,7 +234,7 @@
     };
   }
 
-  function readMineradioAudio(raw) {
+  function readAuroradioAudio(raw) {
     raw = raw || {};
     if (raw.sonicDetailed || raw.subBass != null || raw.lowMid != null || raw.highMid != null) {
       var detailedTreble = clamp01(Number(raw.treble) || Number(raw.brilliance) || Number(raw.air) || 0);
@@ -1028,7 +1028,7 @@
   }
 
   function isActive(fx) {
-    return !!(fx && Number(fx.preset) === INDEX);
+    return !!(fx && (Number(fx.preset) === INDEX || Number(fx.presetOverlay) === INDEX));
   }
 
   function pointerRipple(worldX, worldZ, strength) {
@@ -1037,7 +1037,7 @@
 
   function update(dt, ctx) {
     ctx = ctx || {};
-    var fx = ctx.fx || {};
+    var fx = (typeof fxLayerFx === 'function') ? (fxLayerFx(INDEX) || ctx.fx || {}) : (ctx.fx || {});
     var scene = ctx.scene;
     var active = isActive(fx);
     var target = active ? 1 : 0;
@@ -1053,7 +1053,7 @@
     state.root.visible = true;
     state.sonicTime += dt * (0.45 + sonicNumber(fx, 'sonicGroundMotionSpeed', DEFAULT_GROUND_MOTION_SPEED, 0, 100) * 0.017);
     var time = state.sonicTime || (ctx.time != null ? ctx.time : 0);
-    var audio = readMineradioAudio(ctx.audio || {});
+    var audio = readAuroradioAudio(ctx.audio || {});
     syncTerrainUniforms(fx, audio, dt, time);
     if (active) updateAudioTriggers(audio);
     updateFloatingBlocks(fx, audio, dt, time);
@@ -1070,7 +1070,7 @@
     }
   }
 
-  global.MineradioSonicTopography = {
+  global.AuroradioSonicTopography = {
     INDEX: INDEX,
     isActive: isActive,
     update: update,

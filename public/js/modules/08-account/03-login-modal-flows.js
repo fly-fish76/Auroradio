@@ -731,7 +731,7 @@ function updateLoginProviderUi() {
     if (title) title.textContent = '连接 Spotify';
     if (desc) desc.innerHTML = canOpenSpotifyOAuth
       ? '粘贴 <b>Spotify Client ID</b> 后保存并授权，用于同步 Premium/Free 状态、歌单和 Liked Songs；播放仍按匹配源自动换源。'
-      : '当前环境不支持桌面授权桥；请在 Mineradio 桌面版中连接 Spotify。';
+      : '当前环境不支持桌面授权桥；请在 Auroradio 桌面版中连接 Spotify。';
     if (shell) {
       shell.classList.add('web-login-preview');
       shell.classList.remove('qq-preview', 'netease-preview');
@@ -1065,7 +1065,7 @@ async function openSpotifyWebLogin() {
   var api = window.desktopWindow;
   if (!api || !api.isDesktop || typeof api.openSpotifyMusicLogin !== 'function') {
     updateLoginProviderUi();
-    if (statusEl) { statusEl.textContent = '当前环境不支持 Spotify 本地授权桥，请使用 Mineradio 桌面版。'; statusEl.className = 'fail'; }
+    if (statusEl) { statusEl.textContent = '当前环境不支持 Spotify 本地授权桥，请使用 Auroradio 桌面版。'; statusEl.className = 'fail'; }
     return;
   }
   if (!spotifyLoginStatus.oauthConfigured && !spotifyLoginStatus.tokenConfigured) {

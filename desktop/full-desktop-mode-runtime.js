@@ -53,11 +53,11 @@ function desktopWindowDetachScript(input = {}) {
   const height = Math.max(1, Math.round(Number(input.height) || 1));
   return `
 $ErrorActionPreference = "Stop"
-if (-not ("MineradioFullDesktopNative" -as [type])) {
+if (-not ("AuroradioFullDesktopNative" -as [type])) {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
-public static class MineradioFullDesktopNative {
+public static class AuroradioFullDesktopNative {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
   [DllImport("user32.dll", SetLastError=true)] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool IsWindow(IntPtr hWnd);
   [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr SetParent(IntPtr child, IntPtr parent);
@@ -76,25 +76,25 @@ public static class MineradioFullDesktopNative {
 }
 $previousDpiContext = [IntPtr]::Zero
 try {
-  try { $previousDpiContext = [MineradioFullDesktopNative]::SetThreadDpiAwarenessContext([IntPtr]::new([Int64]-4)) } catch { }
+  try { $previousDpiContext = [AuroradioFullDesktopNative]::SetThreadDpiAwarenessContext([IntPtr]::new([Int64]-4)) } catch { }
   $target = [IntPtr]::new([Int64]${hwnd})
-  if (-not [MineradioFullDesktopNative]::IsWindow($target)) { throw "FULL_DESKTOP_TARGET_NOT_FOUND" }
-  [MineradioFullDesktopNative]::SetParent($target, [IntPtr]::Zero) | Out-Null
+  if (-not [AuroradioFullDesktopNative]::IsWindow($target)) { throw "FULL_DESKTOP_TARGET_NOT_FOUND" }
+  [AuroradioFullDesktopNative]::SetParent($target, [IntPtr]::Zero) | Out-Null
   $GWL_STYLE = -16
   $WS_POPUP = [Int64]0x80000000
   $WS_CHILD = [Int64]0x40000000
-  $style = [MineradioFullDesktopNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
+  $style = [AuroradioFullDesktopNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
   $topLevelStyle = ($style -band (-bnot $WS_CHILD)) -bor $WS_POPUP
-  [MineradioFullDesktopNative]::SetWindowLongPtr($target, $GWL_STYLE, [IntPtr]::new([Int64]$topLevelStyle)) | Out-Null
-  $verifiedStyle = [MineradioFullDesktopNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
+  [AuroradioFullDesktopNative]::SetWindowLongPtr($target, $GWL_STYLE, [IntPtr]::new([Int64]$topLevelStyle)) | Out-Null
+  $verifiedStyle = [AuroradioFullDesktopNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
   if (($verifiedStyle -band $WS_CHILD) -ne 0 -or ($verifiedStyle -band $WS_POPUP) -eq 0) { throw "FULL_DESKTOP_TOPLEVEL_STYLE_FAILED" }
   # SetParent(NULL) temporarily reports the desktop HWND while WS_CHILD is
   # still set. Validate the parent only after converting to WS_POPUP.
-  $parent = [MineradioFullDesktopNative]::GetParent($target)
+  $parent = [AuroradioFullDesktopNative]::GetParent($target)
   if ($parent -ne [IntPtr]::Zero) { throw "FULL_DESKTOP_DETACH_FAILED" }
-  if (-not [MineradioFullDesktopNative]::SetWindowPos($target, [IntPtr]::Zero, ${x}, ${y}, ${width}, ${height}, 0x0030)) { throw "FULL_DESKTOP_POSITION_FAILED" }
-  $rect = New-Object MineradioFullDesktopNative+RECT
-  if (-not [MineradioFullDesktopNative]::GetWindowRect($target, [ref]$rect)) { throw "FULL_DESKTOP_BOUNDS_ACK_FAILED" }
+  if (-not [AuroradioFullDesktopNative]::SetWindowPos($target, [IntPtr]::Zero, ${x}, ${y}, ${width}, ${height}, 0x0030)) { throw "FULL_DESKTOP_POSITION_FAILED" }
+  $rect = New-Object AuroradioFullDesktopNative+RECT
+  if (-not [AuroradioFullDesktopNative]::GetWindowRect($target, [ref]$rect)) { throw "FULL_DESKTOP_BOUNDS_ACK_FAILED" }
   $actualWidth = $rect.Right - $rect.Left
   $actualHeight = $rect.Bottom - $rect.Top
   if ($actualWidth -le 0 -or $actualHeight -le 0) { throw "FULL_DESKTOP_BOUNDS_ACK_FAILED" }
@@ -115,7 +115,7 @@ try {
   } | ConvertTo-Json -Compress
 } finally {
   if ($previousDpiContext -ne [IntPtr]::Zero) {
-    try { [MineradioFullDesktopNative]::SetThreadDpiAwarenessContext($previousDpiContext) | Out-Null } catch { }
+    try { [AuroradioFullDesktopNative]::SetThreadDpiAwarenessContext($previousDpiContext) | Out-Null } catch { }
   }
 }
 `;
@@ -130,12 +130,12 @@ function desktopWindowCoexistAttachScript(input = {}) {
   const height = Math.max(1, Math.round(Number(input.height) || 1));
   return `
 $ErrorActionPreference = "Stop"
-if (-not ("MineradioDesktopCoexistNative" -as [type])) {
+if (-not ("AuroradioDesktopCoexistNative" -as [type])) {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-public static class MineradioDesktopCoexistNative {
+public static class AuroradioDesktopCoexistNative {
   public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
   [DllImport("user32.dll", SetLastError=true)] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool IsWindow(IntPtr hWnd);
@@ -182,38 +182,38 @@ public static class MineradioDesktopCoexistNative {
 }
 $previousDpiContext = [IntPtr]::Zero
 try {
-  try { $previousDpiContext = [MineradioDesktopCoexistNative]::SetThreadDpiAwarenessContext([IntPtr]::new([Int64]-4)) } catch { }
+  try { $previousDpiContext = [AuroradioDesktopCoexistNative]::SetThreadDpiAwarenessContext([IntPtr]::new([Int64]-4)) } catch { }
   $target = [IntPtr]::new([Int64]${hwnd})
-  if (-not [MineradioDesktopCoexistNative]::IsWindow($target)) { throw "FULL_DESKTOP_TARGET_NOT_FOUND" }
+  if (-not [AuroradioDesktopCoexistNative]::IsWindow($target)) { throw "FULL_DESKTOP_TARGET_NOT_FOUND" }
   $iconHost = [IntPtr]::Zero
   $defView = [IntPtr]::Zero
   $listView = [IntPtr]::Zero
   $hostClass = ""
-  if (-not [MineradioDesktopCoexistNative]::FindDesktopIconHost([ref]$iconHost, [ref]$defView, [ref]$listView, [ref]$hostClass)) {
+  if (-not [AuroradioDesktopCoexistNative]::FindDesktopIconHost([ref]$iconHost, [ref]$defView, [ref]$listView, [ref]$hostClass)) {
     throw "FULL_DESKTOP_ICON_HOST_NOT_FOUND"
   }
-  $parentRect = New-Object MineradioDesktopCoexistNative+RECT
-  if (-not [MineradioDesktopCoexistNative]::GetWindowRect($defView, [ref]$parentRect)) { throw "FULL_DESKTOP_ICON_HOST_BOUNDS_FAILED" }
+  $parentRect = New-Object AuroradioDesktopCoexistNative+RECT
+  if (-not [AuroradioDesktopCoexistNative]::GetWindowRect($defView, [ref]$parentRect)) { throw "FULL_DESKTOP_ICON_HOST_BOUNDS_FAILED" }
   $GWL_STYLE = -16
   $WS_POPUP = [Int64]0x80000000
   $WS_CHILD = [Int64]0x40000000
-  $style = [MineradioDesktopCoexistNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
+  $style = [AuroradioDesktopCoexistNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
   $childStyle = ($style -band (-bnot $WS_POPUP)) -bor $WS_CHILD
-  [MineradioDesktopCoexistNative]::SetWindowLongPtr($target, $GWL_STYLE, [IntPtr]::new([Int64]$childStyle)) | Out-Null
-  [MineradioDesktopCoexistNative]::SetParent($target, $defView) | Out-Null
-  $verifiedStyle = [MineradioDesktopCoexistNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
+  [AuroradioDesktopCoexistNative]::SetWindowLongPtr($target, $GWL_STYLE, [IntPtr]::new([Int64]$childStyle)) | Out-Null
+  [AuroradioDesktopCoexistNative]::SetParent($target, $defView) | Out-Null
+  $verifiedStyle = [AuroradioDesktopCoexistNative]::GetWindowLongPtr($target, $GWL_STYLE).ToInt64()
   if (($verifiedStyle -band $WS_CHILD) -eq 0 -or ($verifiedStyle -band $WS_POPUP) -ne 0) { throw "FULL_DESKTOP_ICON_HOST_STYLE_FAILED" }
-  if ([MineradioDesktopCoexistNative]::GetParent($target) -ne $defView) { throw "FULL_DESKTOP_ICON_HOST_ATTACH_FAILED" }
+  if ([AuroradioDesktopCoexistNative]::GetParent($target) -ne $defView) { throw "FULL_DESKTOP_ICON_HOST_ATTACH_FAILED" }
   $localX = ${x} - $parentRect.Left
   $localY = ${y} - $parentRect.Top
-  # Keep the one complete Mineradio surface below Explorer's real SysListView32.
+  # Keep the one complete Auroradio surface below Explorer's real SysListView32.
   # The native icon layer makes Explorer's black background transparent while
-  # retaining the real icon pixels and their native hit testing above Mineradio.
-  if (-not [MineradioDesktopCoexistNative]::SetWindowPos($target, [IntPtr]::new(1), $localX, $localY, ${width}, ${height}, 0x0030)) {
+  # retaining the real icon pixels and their native hit testing above Auroradio.
+  if (-not [AuroradioDesktopCoexistNative]::SetWindowPos($target, [IntPtr]::new(1), $localX, $localY, ${width}, ${height}, 0x0030)) {
     throw "FULL_DESKTOP_ICON_HOST_POSITION_FAILED"
   }
-  $rect = New-Object MineradioDesktopCoexistNative+RECT
-  if (-not [MineradioDesktopCoexistNative]::GetWindowRect($target, [ref]$rect)) { throw "FULL_DESKTOP_ICON_HOST_BOUNDS_ACK_FAILED" }
+  $rect = New-Object AuroradioDesktopCoexistNative+RECT
+  if (-not [AuroradioDesktopCoexistNative]::GetWindowRect($target, [ref]$rect)) { throw "FULL_DESKTOP_ICON_HOST_BOUNDS_ACK_FAILED" }
   $actualWidth = $rect.Right - $rect.Left
   $actualHeight = $rect.Bottom - $rect.Top
   if ([Math]::Abs($rect.Left - ${x}) -gt 16 -or [Math]::Abs($rect.Top - ${y}) -gt 16 -or [Math]::Abs($actualWidth - ${width}) -gt 16 -or [Math]::Abs($actualHeight - ${height}) -gt 16) {
@@ -235,7 +235,7 @@ try {
   } | ConvertTo-Json -Compress
 } finally {
   if ($previousDpiContext -ne [IntPtr]::Zero) {
-    try { [MineradioDesktopCoexistNative]::SetThreadDpiAwarenessContext($previousDpiContext) | Out-Null } catch { }
+    try { [AuroradioDesktopCoexistNative]::SetThreadDpiAwarenessContext($previousDpiContext) | Out-Null } catch { }
   }
 }
 `;
@@ -973,7 +973,7 @@ class FullDesktopModeRuntime {
           this.lastError = this.iconShapeError;
           this.phase = 'recovering-icon-layer';
           // Do not leave enabled=true/interative=true paired with a hidden
-          // Mineradio HWND. Explorer has confirmed restoration, so keep the
+          // Auroradio HWND. Explorer has confirmed restoration, so keep the
           // existing renderer visible while the serialized rebind is queued.
           if (this.isWindowAlive()) safeCall(this.window, 'showInactive', null);
           this.generation += 1;
@@ -1088,7 +1088,7 @@ class FullDesktopModeRuntime {
 
   applyInteractivePointerRoute(win = this.window, options = {}) {
     if (!this.isWindowAlive(win)) return null;
-    // A locked desktop surface passes normal Mineradio areas through to
+    // A locked desktop surface passes normal Auroradio areas through to
     // Explorer, but forwarded move events keep the renderer informed. The
     // right-top controller is the permanent recovery island: entering its
     // reveal corridor immediately restores native input so the same switch can
@@ -1547,7 +1547,7 @@ class FullDesktopModeRuntime {
 
   prepareWindow(win, bounds, options = {}) {
     if (options.hide !== false) safeCall(win, 'hide', null);
-    // The visual HWND remains one continuous Mineradio surface below Explorer's
+    // The visual HWND remains one continuous Auroradio surface below Explorer's
     // color-keyed icon layer. Clear legacy BrowserWindow holes before reparenting.
     safeCall(win, 'setShape', null, []);
     safeCall(win, 'setHasShadow', null, false);
@@ -1743,7 +1743,7 @@ class FullDesktopModeRuntime {
       return { ok: true, enabled: true, interactive: true, status: this.emitStatus(reason) };
     } catch (error) {
       // A failed repair must restore a normal visible window; never leave the
-      // WE base alive behind enabled=true plus a hidden Mineradio HWND.
+      // WE base alive behind enabled=true plus a hidden Auroradio HWND.
       return this.disableInternal(reason + '-failed', error);
     }
   }

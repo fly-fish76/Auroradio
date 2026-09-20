@@ -75,7 +75,7 @@ test('native layered guard puts the complete main HWND below Explorer icons and 
   assert.match(script, /EmitTerminal\(restored, terminalCode\)/);
   assert.match(script, /OwnerProcessAlive\(\)/);
   assert.doesNotMatch(script,
-    /SetWindowRgn|EnableWindow|LVM_SETTEXTBKCOLOR|GetCursorPos|SetCursorPos|SendInput|WM_MOUSEMOVE|Mineradio Desktop Icon Lock Shield|CreateWindowEx/);
+    /SetWindowRgn|EnableWindow|LVM_SETTEXTBKCOLOR|GetCursorPos|SetCursorPos|SendInput|WM_MOUSEMOVE|Auroradio Desktop Icon Lock Shield|CreateWindowEx/);
 });
 
 test('external guard keeps WMI crash recovery but runs PowerShell under headless System32 conhost', () => {

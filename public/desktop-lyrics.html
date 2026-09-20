@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Mineradio Desktop Lyrics</title>
+  <title>Auroradio Desktop Lyrics</title>
   <style>
     :root{
       --lyric-primary:#f6fdff;
@@ -187,7 +187,7 @@
   <canvas id="fx"></canvas>
   <div class="wrap">
     <div id="stage" class="stage">
-      <div id="lyricViewport" class="lyric-viewport"><div id="lyricScroller" class="lyric-scroll"><div id="line" class="line" data-text="Mineradio">Mineradio</div></div></div>
+      <div id="lyricViewport" class="lyric-viewport"><div id="lyricScroller" class="lyric-scroll"><div id="line" class="line" data-text="Auroradio">Auroradio</div></div></div>
       <div id="lockHint" class="lock-hint"><span class="lock-icon"></span><span id="lockText">&#20013;&#38190;&#35299;&#38145;</span><button id="closeLyricsBtn" class="lyrics-close" type="button" aria-label="Close desktop lyrics">&#20851;&#38381;&#26700;&#38754;&#27468;&#35789;</button></div>
     </div>
   </div>
@@ -222,7 +222,7 @@
     var particles = [];
     var live = { solar:0, beat:0, bass:0, scale:1, glow:0, spark:0, lift:0 };
     var state = {
-      enabled:false,text:'Mineradio',progress:0,progressSpan:4.8,progressReceivedAt:0,playing:false,
+      enabled:false,text:'Auroradio',progress:0,progressSpan:4.8,progressReceivedAt:0,playing:false,
       playbackTime:0,playbackDuration:0,playbackRate:1,playbackReceivedAt:0,beatMapKey:'',
       size:1,opacity:.92,clickThrough:true,lyricGlowParticles:false,cinema:true,highlightFollow:false,frameRate:60,
       lyricGlow:true,lyricGlowBeat:true,lyricGlowStrength:.35,highBloom:0,beatGlow:0,beatPulse:0,bass:0,feather:.055,
@@ -570,7 +570,7 @@
     function measureLineWidth(fontSize) {
       ctx.save();
       ctx.font = state.fontWeight + ' ' + fontSize + 'px ' + state.fontFamily;
-      var text = line.textContent || 'Mineradio';
+      var text = line.textContent || 'Auroradio';
       var width = ctx.measureText(text).width;
       ctx.restore();
       width += Math.max(0, Array.from(text).length - 1) * fontSize * state.letterSpacing;
@@ -751,7 +751,7 @@
       if (motion.beatGlow != null) state.beatGlow = motion.beatGlow;
       if (motion.beatPulse != null) state.beatPulse = motion.beatPulse;
       if (motion.bass != null) state.bass = motion.bass;
-      var text = String(state.text || 'Mineradio').replace(/\s+/g, ' ').trim() || 'Mineradio';
+      var text = String(state.text || 'Auroradio').replace(/\s+/g, ' ').trim() || 'Auroradio';
       baseFontSize = Math.round(58 * clamp(state.size, .72, 1.55, 1));
       state.progress = clamp(state.progress, 0, 1, 0);
       state.progressSpan = clamp(state.progressSpan, .75, 18, 4.8);
@@ -947,7 +947,7 @@
       var target = Math.min(1.08, (0.09 + live.solar * .38 + live.beat * .22) * Math.min(3, motion.glowDrive));
       live.glow += (target - live.glow) * (target > live.glow ? .11 : .06);
       if (live.glow <= .004) return;
-      var text = line.textContent || 'Mineradio';
+      var text = line.textContent || 'Auroradio';
       var cx = rect.left + rect.width / 2;
       var cy = rect.top + rect.height / 2;
       var spacing = renderedFontSize * state.letterSpacing;

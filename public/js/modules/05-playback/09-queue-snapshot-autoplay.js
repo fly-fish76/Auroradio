@@ -1,6 +1,7 @@
 // ============================================================
 function queueItemKey(song) {
   if (!song) return '';
+  if (song.provider === 'lx' || song.source === 'lx' || song.lxSource) return 'lx:' + (song.lxSource || '') + ':' + (song.songmid || song.id || (song.name + '|' + song.artist));
   if (song.provider === 'spotify' || song.source === 'spotify' || song.type === 'spotify' || song.spotifyId || song.spotifyUri) return 'spotify:' + (song.spotifyId || song.id || song.spotifyUri || song.uri || (song.name + '|' + song.artist));
   if (song.provider === 'qq' || song.source === 'qq' || song.type === 'qq') return 'qq:' + (song.mid || song.songmid || song.id || (song.name + '|' + song.artist));
   if (song.provider === 'kugou' || song.source === 'kugou' || song.type === 'kugou' || song.hash || song.audioHash) return 'kugou:' + (song.hash || song.fileHash || song.audioHash || song.id || (song.name + '|' + song.artist));
@@ -13,7 +14,7 @@ function playbackRestoreSongSnapshot(song) {
   song = song || {};
   var snap = {};
   [
-    'provider', 'source', 'type', 'id', 'mid', 'songmid', 'mediaMid', 'media_mid', 'qqId',
+    'provider', 'source', 'type', 'id', 'mid', 'songmid', 'mediaMid', 'media_mid', 'qqId', 'lxSource',
     'spotifyId', 'spotifyUri', 'spotifyUrl', 'uri', 'albumUri',
     'hash', 'fileHash', 'audioHash', 'albumId', 'album_id', 'albumMid', 'albummid', 'albumAudioId', 'album_audio_id', 'mixSongId', 'hqHash', 'sqHash', 'resHash',
     'name', 'title', 'artist', 'album', 'cover', 'duration', 'durationMs', 'dt', 'fee',

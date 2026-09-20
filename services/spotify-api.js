@@ -7,8 +7,8 @@ const path = require('path');
 const SPOTIFY_ACCOUNTS_BASE = (process.env.SPOTIFY_ACCOUNTS_BASE || 'https://accounts.spotify.com').replace(/\/+$/, '');
 const SPOTIFY_API_BASE = (process.env.SPOTIFY_API_BASE || 'https://api.spotify.com/v1').replace(/\/+$/, '');
 const DEFAULT_SPOTIFY_MARKET = String(process.env.MINERADIO_SPOTIFY_MARKET || process.env.SPOTIFY_MARKET || 'US').trim().toUpperCase();
-const DEFAULT_SPOTIFY_CONFIG_FILE = path.join(__dirname, '.spotify-credentials.json');
-const DEFAULT_SPOTIFY_TOKEN_FILE = path.join(__dirname, '.spotify-token.json');
+const DEFAULT_SPOTIFY_CONFIG_FILE = path.join(__dirname, '..', '.spotify-credentials.json');
+const DEFAULT_SPOTIFY_TOKEN_FILE = path.join(__dirname, '..', '.spotify-token.json');
 const DEFAULT_SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:43879/callback';
 const DEFAULT_SPOTIFY_SCOPES = [
   'playlist-read-private',
@@ -20,7 +20,7 @@ const DEFAULT_SPOTIFY_SCOPES = [
   'playlist-modify-public',
 ];
 const SPOTIFY_LIKED_PLAYLIST_ID = 'spotify-liked';
-const SPOTIFY_UA = 'Mineradio/2.1.0 (Spotify Web API bridge)';
+const SPOTIFY_UA = 'Auroradio/2.1.0 (Spotify Web API bridge)';
 const SPOTIFY_SEARCH_LIMIT_MAX = 10;
 const SPOTIFY_PLAYLIST_PAGE_LIMIT = 50;
 
@@ -73,7 +73,7 @@ function spotifyConfigFileCandidates() {
   }
   add(firstEnv(['SPOTIFY_CONFIG_FILE', 'MINERADIO_SPOTIFY_CONFIG_FILE']));
   add(DEFAULT_SPOTIFY_CONFIG_FILE);
-  add(path.join(__dirname, 'spotify-credentials.json'));
+  add(path.join(__dirname, '..', 'spotify-credentials.json'));
   return candidates;
 }
 
@@ -228,7 +228,7 @@ function getSpotifyOAuthConfig() {
   // A client secret is accepted only from a backend-controlled environment for optional client-credentials requests.
   const clientSecret = envClientSecret;
   const redirectUri = envRedirectUri || fileConfig.redirectUri || DEFAULT_SPOTIFY_REDIRECT_URI;
-  // Mineradio owns the OAuth flow, so always include the scopes required by
+  // Auroradio owns the OAuth flow, so always include the scopes required by
   // the currently exposed account actions. Existing tokens still need a fresh
   // authorization before these newly requested scopes become effective.
   const configuredScopes = envScopes.length ? envScopes : fileConfig.scopes;
@@ -377,7 +377,7 @@ function spotifyErrorDetails(err) {
   } else if (statusCode === 404) {
     message = 'Spotify 没找到这个歌单，可能已删除、未公开或当前账号无权访问。';
   } else if (statusCode === 500 || statusCode === 502 || statusCode === 503) {
-    message = 'Spotify 服务暂时不可用，Mineradio 已完成有限重试，请稍后再试。';
+    message = 'Spotify 服务暂时不可用，Auroradio 已完成有限重试，请稍后再试。';
   } else if (/scope|permission|insufficient/i.test(apiMessage || code)) {
     message = 'Spotify 授权权限不够，请重新连接 Spotify 后再同步歌单。';
   }
@@ -1391,7 +1391,7 @@ async function handleSpotifyCreatePlaylist(name, opts) {
     name,
     public: isPublic,
     collaborative: false,
-    description: normalizeText(opts.description || 'Created with Mineradio'),
+    description: normalizeText(opts.description || 'Created with Auroradio'),
   }, { timeoutMs: 10000 });
   return {
     provider: 'spotify',
@@ -1414,7 +1414,7 @@ async function handleSpotifySongUrl(track) {
     restriction: {
       category: 'provider_limited',
       reason: 'spotify_metadata_only',
-      message: 'Spotify 官方 Web API 不提供可交给 Mineradio 播放的音频直链，正在自动换源。',
+      message: 'Spotify 官方 Web API 不提供可交给 Auroradio 播放的音频直链，正在自动换源。',
       action: 'switch_source',
     },
   };
@@ -1429,7 +1429,7 @@ async function handleSpotifyLyric(id) {
     yrc: '',
     ytlrc: '',
     source: 'none',
-    message: 'Spotify Web API 不提供歌词，Mineradio 会沿用跨平台歌词兜底。',
+    message: 'Spotify Web API 不提供歌词，Auroradio 会沿用跨平台歌词兜底。',
   };
 }
 

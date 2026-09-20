@@ -114,7 +114,7 @@ function normalizeWindows(windows) {
     .sort((a, b) => a.start - b.start);
 }
 
-function normalizeMineradioBeatMap(track, map, extra = {}) {
+function normalizeAuroradioBeatMap(track, map, extra = {}) {
   const gridStep = toNumber(map && map.gridStep, 0);
   const rawBeats = (map && (map.cameraBeats || map.beats || map.kicks)) || [];
   const beats = rawBeats
@@ -168,5 +168,5 @@ function normalizeMineradioBeatMap(track, map, extra = {}) {
 }
 
 module.exports = {
-  normalizeMineradioBeatMap,
+  normalizeAuroradioBeatMap,
 };

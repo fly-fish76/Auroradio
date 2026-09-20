@@ -1,9 +1,9 @@
 {
-  "name": "mineradio",
-  "productName": "Mineradio",
+  "name": "auroradio",
+  "productName": "Auroradio",
   "version": "2.1.0",
-  "description": "Windows 沉浸式音乐播放器，融合桌面模式、歌词舞台、粒子视觉和 3D 歌单架。",
-  "author": "Mineradio",
+  "description": "Auroradio — Windows 沉浸式音乐播放器（基于 Mineradio 修改），融合桌面模式、歌词舞台、粒子视觉和 3D 歌单架。",
+  "author": "Auroradio",
   "license": "GPL-3.0-only",
   "main": "desktop/main.js",
   "private": true,
@@ -15,7 +15,7 @@
   },
   "build": {
     "appId": "com.mineradio.desktop",
-    "productName": "Mineradio",
+    "productName": "Auroradio",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -30,12 +30,9 @@
       "build/**/*",
       "cuefield/**/*",
       "server.js",
-      "*-api.js",
-      "qishui-auth-v6.js",
-      "qishui-qr-login.js",
+      "services/**/*",
       "qishui-auth-v6/**/*",
       "qishui-audio-decryptor/**/*",
-      "dj-analyzer.js",
       "LICENSE",
       "NOTICE.md",
       "docs/THIRD_PARTY_PORTS.md",
@@ -45,9 +42,9 @@
       "!public/index.*.html",
       "public/index.html"
     ],
-    "asar": false,
+    "asar": true,
     "win": {
-      "executableName": "Mineradio",
+      "executableName": "Auroradio",
       "icon": "build/icon.ico",
       "signAndEditExecutable": false,
       "target": [
@@ -65,43 +62,31 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Mineradio",
+      "shortcutName": "Auroradio",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerSidebar": "build/installerSidebar.bmp",
       "uninstallerSidebar": "build/installerSidebar.bmp",
       "installerHeader": "build/installerHeader.bmp",
       "include": "build/installer.nsh",
-      "artifactName": "Mineradio-${version}-Setup.${ext}"
+      "artifactName": "Auroradio-${version}-Setup.${ext}"
     },
     "publish": [
       {
         "provider": "github",
         "owner": "XxHuberrr",
-        "repo": "Mineradio"
+        "repo": "Auroradio"
       }
     ]
-  },
-  "mineradio": {
-    "update": {
-      "provider": "github",
-      "owner": "XxHuberrr",
-      "repo": "Mineradio",
-      "preview": false,
-      "preferMirrors": true,
-      "mirrors": [
-        "https://gh.llkk.cc/",
-        "https://ghfast.top/",
-        "https://gh-proxy.com/"
-      ]
-    }
   },
   "dependencies": {
     "gsap": "^3.15.0",
     "mpg123-decoder": "^1.0.3",
     "music-metadata": "11.14.0",
+    "needle": "^3.5.0",
     "NeteaseCloudMusicApi": "^4.32.0",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "tunnel": "^0.0.6"
   },
   "overrides": {
     "axios": "1.18.1",

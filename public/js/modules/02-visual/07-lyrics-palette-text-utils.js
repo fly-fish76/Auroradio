@@ -512,7 +512,9 @@ function updateLyricPaletteFromCover(coverCanvas) {
     if (fx.lyricColorMode !== 'custom') setStageLyricPalette(stageLyrics.coverPalette);
     if (typeof updateSonicGroundColorControls === 'function') updateSonicGroundColorControls();
     if (typeof updateSonicWorkshopColorControls === 'function') updateSonicWorkshopColorControls();
-    if (window.MineradioSonicWorkshop && typeof MineradioSonicWorkshop.pushProperties === 'function') MineradioSonicWorkshop.pushProperties(true);
+    // 封面配色模式: 封面变化时同步凤凰颜色
+    if (fx.phoenixColorMode === 'cover' && typeof syncPhoenixParticleColors === 'function') syncPhoenixParticleColors();
+    if (window.AuroradioSonicWorkshop && typeof AuroradioSonicWorkshop.pushProperties === 'function') AuroradioSonicWorkshop.pushProperties(true);
   } catch (e) { }
 }
 

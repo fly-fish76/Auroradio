@@ -8,7 +8,7 @@ const port = Number(process.argv[2] || 9231);
 async function main() {
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
   const target = targets.find((item) => item.type === 'page' && /127\.0\.0\.1/.test(item.url || ''));
-  assert(target && target.webSocketDebuggerUrl, 'Mineradio CDP page target was not found');
+  assert(target && target.webSocketDebuggerUrl, 'Auroradio CDP page target was not found');
 
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {

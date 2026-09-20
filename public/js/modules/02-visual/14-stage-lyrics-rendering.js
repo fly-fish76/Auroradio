@@ -2125,6 +2125,21 @@ function updateStageLyrics3D(dt) {
     layoutY = clampRange(layoutY + (normalShelfDetailOpen ? 0.18 : 0.08), -2.4, 2.7);
     layoutZ = clampRange(layoutZ + 0.84, -3.2, 3.2);
   }
+  // 凤凰歌词避让: 凤凰层激活 (主预设或叠加) 且有歌词在显示时, 歌词平滑下移到凤凰下方
+  if (!skullMouthLyrics && fx.lyricAvoidPhoenix !== false &&
+    typeof PHOENIX_PRESET_INDEX !== 'undefined' && typeof fxLayerActiveFor === 'function' &&
+    fxLayerActiveFor(PHOENIX_PRESET_INDEX)) {
+    var phoenixAvoidTarget = (stageLyrics.current || (stageLyrics.outgoing && stageLyrics.outgoing.length)) ? 1 : 0;
+    if (!isFinite(stageLyrics.phoenixAvoidAmt)) stageLyrics.phoenixAvoidAmt = 0;
+    stageLyrics.phoenixAvoidAmt += (phoenixAvoidTarget - stageLyrics.phoenixAvoidAmt) * Math.min(1, dt * 3.2);
+    var phoenixAvoid = stageLyrics.phoenixAvoidAmt;
+    if (phoenixAvoid > 0.001) {
+      layoutScale *= 1 - 0.06 * phoenixAvoid;
+      layoutY = clampRange(layoutY - 1.62 * phoenixAvoid, -2.4, 2.7);
+    }
+  } else if (isFinite(stageLyrics.phoenixAvoidAmt)) {
+    stageLyrics.phoenixAvoidAmt *= Math.pow(0.2, Math.max(0.001, dt));  // 条件消失后快速平滑归位
+  }
   if (skullMouthLyrics) {
     layoutScale *= skullShelfDetailOpen ? 0.52 : (shelfLyricAvoid ? 0.58 : 0.66);
     if (shelfLyricAvoid && !skullShelfDetailOpen) {
@@ -2173,7 +2188,8 @@ function updateStageLyrics3D(dt) {
     lyricLayoutBase.copy(camera.position).addScaledVector(lyricCameraDir, lockBaseDistance);
     lyricCameraTarget.copy(lyricLayoutBase);
     applyStageLyricLayoutOffset(lyricCameraTarget, layoutX, layoutY, layoutZ);
-    stageLyricTargetQuaternion(camera.quaternion, layoutTiltX, layoutTiltY);
+    // 歌词保持水平: 镜头锁定模式下同样去掉相机滚转/俯仰 (默认开, fx.lyricKeepLevel=false 恢复跟随相机)
+    stageLyricTargetQuaternion(fx.lyricKeepLevel === false ? camera.quaternion : stageLyricLevelQuaternion(lyricCameraTarget), layoutTiltX, layoutTiltY);
     if (stageLyrics.snapCameraLockFrames > 0) {
       stageLyrics.group.position.copy(lyricCameraTarget);
       stageLyrics.group.quaternion.copy(lyricTargetQuat);
@@ -2200,7 +2216,8 @@ function updateStageLyrics3D(dt) {
     lyricLayoutTarget.copy(lyricLayoutBase);
     applyStageLyricLayoutOffset(lyricLayoutTarget, layoutX, layoutY, layoutZ);
     stageLyrics.group.position.copy(lyricLayoutTarget);
-    stageLyricTargetQuaternion(lyricCoverWorldQuat, layoutTiltX, layoutTiltY);
+    // 歌词保持水平: 默认不再跟随封面粒子平面旋转 (拖拽/甩动封面时歌词保持水平), 关闭可恢复旧行为
+    stageLyricTargetQuaternion(fx.lyricKeepLevel === false ? lyricCoverWorldQuat : stageLyricLevelQuaternion(lyricLayoutTarget), layoutTiltX, layoutTiltY);
     stageLyrics.group.quaternion.copy(lyricTargetQuat);
   }
   function tickMesh(mesh, isCurrent) {

@@ -1,3 +1,5 @@
+// 启动不自动打开 Home (用户要求): 首次真正开始播放后解除, 手动 goHome() 不受影响
+var startupHomeAutoOpenSuppressed = true;
 var emptyHomeStartEl = document.getElementById('empty-home');
 if (emptyHomeStartEl) {
   emptyHomeStartEl.addEventListener('click', function (e) {
@@ -12,6 +14,7 @@ function shouldShowEmptyHomeCore(ignoreSplash) {
   if (!ignoreSplash && document.body.classList.contains('splash-active')) return false;
   if (immersiveMode) return false;
   if (homeForcedOpen) return true;
+  if (startupHomeAutoOpenSuppressed) return false; // 启动阶段不自动弹 Home
   if (homeSuppressed) return false;
   if (shelfPinnedOpen) return false;
   if (shelfManager && shelfManager.hasOpenContent && shelfManager.hasOpenContent()) return false;
@@ -29,6 +32,7 @@ function shouldShowEmptyHomeAfterSplash() {
   return shouldShowEmptyHomeCore(true);
 }
 function shouldForceEmptyHomeAfterSplash() {
+  if (startupHomeAutoOpenSuppressed) return false; // 启动阶段不强制弹 Home
   if (immersiveMode) return false;
   if (shelfPinnedOpen) return false;
   if (shelfManager && shelfManager.hasOpenContent && shelfManager.hasOpenContent()) return false;
@@ -120,6 +124,8 @@ function switchPlaybackVisualToEmily() {
 }
 function applyStartupStarfieldPreset() {
   if (playing || currentIdx >= 0 || hasRestoredPlaybackCandidate()) return;
+  // 用户保存过非默认预设: 尊重退出时的选择, 不用星空预览抢占 (否则重启后预设丢失)
+  if (fx && Number(fx.preset) !== Number(fxDefaults.preset)) return;
   startupVisualPreviewActive = true;
   if (typeof setPreset === 'function' && fx.preset !== 5) {
     setPreset(5, { silent: true, preserveCamera: false, skipTransition: true, noSave: true });

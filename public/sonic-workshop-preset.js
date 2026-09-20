@@ -81,7 +81,7 @@
   }
 
   function isActive(fx) {
-    return !!(fx && Number(fx.preset) === INDEX);
+    return !!(fx && (Number(fx.preset) === INDEX || Number(fx.presetOverlay) === INDEX));
   }
 
   function currentSong() {
@@ -331,7 +331,7 @@
     var peak = rgbToHexLocal(peakRgb.r, peakRgb.g, peakRgb.b);
     var glow = clamp(0.62 + hsl.s * 0.20 + hsl.l * 0.10, 0.62, 0.98);
     return {
-      name: 'Mineradio Custom',
+      name: 'Auroradio Custom',
       id: 'mineradio-custom',
       __primaryColor: hex,
       uBaseColor1: mixHex('#000000', hex, 0.075),
@@ -379,7 +379,7 @@
     var peakInfo = workshopHexInfo(peak);
     var glow = clamp(0.62 + info.chroma * 0.10 + Math.max(coolInfo.chroma, peakInfo.chroma) * 0.08 + Math.max(0, info.lum - 0.38) * 0.06, 0.62, 0.96);
     return {
-      name: 'Mineradio Region Palette',
+      name: 'Auroradio Region Palette',
       id: 'mineradio-custom',
       __primaryColor: primary,
       uBaseColor1: mixHex('#000000', base, 0.20),
@@ -430,7 +430,7 @@
   function cloneWorkshopTheme(theme) {
     theme = theme || workshopCustomThemeForColor('#cb6c89');
     var out = {
-      name: theme.name || 'Mineradio Region Palette',
+      name: theme.name || 'Auroradio Region Palette',
       id: theme.id || 'mineradio-custom',
       __primaryColor: normalizeHex(theme.__primaryColor || '#cb6c89', '#cb6c89'),
       uGlowIntensity: Number(theme.uGlowIntensity) || 1
@@ -446,7 +446,7 @@
     to = cloneWorkshopTheme(to);
     t = clamp01(t);
     var out = {
-      name: to.name || from.name || 'Mineradio Region Palette',
+      name: to.name || from.name || 'Auroradio Region Palette',
       id: to.id || from.id || 'mineradio-custom',
       __primaryColor: mixHex(from.__primaryColor, to.__primaryColor, t),
       uGlowIntensity: Number((from.uGlowIntensity + (to.uGlowIntensity - from.uGlowIntensity) * t).toFixed(3))
@@ -630,7 +630,8 @@
 
   function pushProperties(force) {
     if (!state.iframe) return;
-    var props = applyWorkshopThemeTransition(deriveProperties(global.fx || {}));
+    var layerFx = (typeof fxLayerFx === 'function') ? (fxLayerFx(INDEX) || global.fx || {}) : (global.fx || {});
+    var props = applyWorkshopThemeTransition(deriveProperties(layerFx));
     var key = JSON.stringify(props);
     var now = nowMs();
     if (!force && key === state.lastPropertiesKey && now - state.lastPropertiesAt < PROPERTIES_PUSH_INTERVAL_MS) return;
@@ -807,7 +808,7 @@
     }
   });
 
-  global.MineradioSonicWorkshop = {
+  global.AuroradioSonicWorkshop = {
     INDEX: INDEX,
     isActive: isActive,
     update: update,

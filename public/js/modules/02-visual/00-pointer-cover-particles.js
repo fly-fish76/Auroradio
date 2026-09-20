@@ -140,12 +140,12 @@ window.addEventListener('mouseup', function (e) {
   orbit.rotating = false;
   particlePointerSpin.active = false;
   idleGuidePointerUp();
-  if (window.MineradioSonicTopography && MineradioSonicTopography.isActive(fx) && !mouseDownAt.hadDrag && !isPointerOverUi(e)) {
+  if (window.AuroradioSonicTopography && AuroradioSonicTopography.isActive(fx) && !mouseDownAt.hadDrag && !isPointerOverUi(e)) {
     var pressMs = Math.max(0, performance.now() - (mouseDownAt.t || 0));
     var strength = Math.min(0.25 + (pressMs / 1000) * 2.6, 3.0);
     var nx = (e.clientX / Math.max(1, innerWidth) - 0.5) * 34;
     var nz = (0.5 - e.clientY / Math.max(1, innerHeight)) * 34;
-    MineradioSonicTopography.pointerRipple(nx, nz, strength);
+    AuroradioSonicTopography.pointerRipple(nx, nz, strength);
   }
 });
 renderer.domElement.addEventListener('mouseleave', function () {
@@ -171,6 +171,11 @@ renderer.domElement.addEventListener('wheel', function (e) {
   unlockCenteredView();
   orbit.userRadius = Math.max(orbit.minRadius, Math.min(orbit.maxRadius, orbit.userRadius + e.deltaY * 0.005));
   if (orbit.recentering) orbit.recentering = false;
+  // 镜像当前缩放到 fx (固定缩放开启时, 滚轮后的值即以后打开的默认值), 滑杆跟随
+  fx.zoomRadius = Math.round(orbit.userRadius * 100) / 100;
+  if (typeof fxZoomRememberCurrent === 'function') fxZoomRememberCurrent();
+  if (typeof setRange === 'function') setRange('fx-zoom', fx.zoomRadius);
+  if (typeof scheduleLyricLayoutSave === 'function') scheduleLyricLayoutSave(500, { user: true, reason: 'zoomRadius' });
 }, { passive: false });
 
 // 双击屏幕回正 — 不命中卡片时
@@ -217,16 +222,28 @@ var dotTexture = makeDotTexture();
 // ============================================================
 var PLANE_SIZE = 4.8;
 var RIPPLE_MAX = 12;
+var PARTICLE_GRID_HARD_CAP = 640;   // 密度倍增后的绝对网格上限, 防止误拉出百万级粒子
 
-var GRID_X = coverParticleGridForResolution(fx.coverResolution), GRID_Y = GRID_X;
+function densityGridFor(base, density) {
+  var d = clampRange(Number(density) || 1, 1, 4);
+  var grid = Math.round(Math.max(88, base) * d);
+  grid = Math.min(PARTICLE_GRID_HARD_CAP, grid);
+  return grid % 2 ? grid : grid + 1;
+}
+function coverParticleGridForFx() {
+  return densityGridFor(coverParticleGridForResolution(fx.coverResolution), fx.particleDensity);
+}
+
+var GRID_X = coverParticleGridForFx(), GRID_Y = GRID_X;
 var PCOUNT = GRID_X * GRID_Y;
 var positions = null, uvs = null, aRand = null;
 var coverResolutionReloadTimer = null;
+var particleDensityRebuildTimer = null;
+var particleDensityPendingValue = null;
 var currentCoverSource = null;
 var coverPickerCanvas = null;
 
 function buildCoverParticleGeometry(grid) {
-  grid = coverParticleGridForResolution(grid / 118);
   var count = grid * grid;
   var nextGeo = new THREE.BufferGeometry();
   var nextPositions = new Float32Array(count * 3);
@@ -260,7 +277,7 @@ var geo = buildCoverParticleGeometry(GRID_X);
 function applyCoverParticleResolution(value, opts) {
   opts = opts || {};
   fx.coverResolution = normalizeCoverResolution(value);
-  var grid = coverParticleGridForResolution(fx.coverResolution);
+  var grid = coverParticleGridForFx();
   if (grid === GRID_X && geo && geo.userData && geo.userData.grid === grid) return;
   var oldGeo = geo;
   var nextGeo = buildCoverParticleGeometry(grid);
@@ -272,6 +289,47 @@ function applyCoverParticleResolution(value, opts) {
   if (oldGeo && oldGeo !== nextGeo) oldGeo.dispose();
   uniforms.uBurstAmt.value = Math.max(uniforms.uBurstAmt.value, 0.18);
   if (opts.reload !== false) scheduleCoverResolutionReload();
+}
+
+function swapCoverParticleGeometry(grid) {
+  var oldGeo = geo;
+  var nextGeo = buildCoverParticleGeometry(grid);
+  geo = nextGeo;
+  GRID_X = GRID_Y = grid;
+  PCOUNT = grid * grid;
+  if (particles) particles.geometry = nextGeo;
+  if (bloomParticles) bloomParticles.geometry = nextGeo;
+  if (oldGeo && oldGeo !== nextGeo) oldGeo.dispose();
+  uniforms.uBurstAmt.value = Math.max(uniforms.uBurstAmt.value, 0.18);
+  return nextGeo;
+}
+
+// 粒子密度: 几何层倍增粒子总数, 不影响封面纹理精度, 也不触发纹理重载
+function applyParticleDensity(value, opts) {
+  opts = opts || {};
+  fx.particleDensity = clampRange(Number(value) || 1, 1, 4);
+  if (opts.debounce) {
+    particleDensityPendingValue = fx.particleDensity;
+    if (particleDensityRebuildTimer) clearTimeout(particleDensityRebuildTimer);
+    particleDensityRebuildTimer = setTimeout(function () {
+      particleDensityRebuildTimer = null;
+      var pending = particleDensityPendingValue;
+      particleDensityPendingValue = null;
+      if (pending == null) return;
+      var grid = densityGridFor(coverParticleGridForResolution(fx.coverResolution), pending);
+      if (grid === GRID_X && geo && geo.userData && geo.userData.grid === grid) return;
+      swapCoverParticleGeometry(grid);
+    }, 120);
+    return;
+  }
+  if (particleDensityRebuildTimer) {
+    clearTimeout(particleDensityRebuildTimer);
+    particleDensityRebuildTimer = null;
+    particleDensityPendingValue = null;
+  }
+  var grid = coverParticleGridForFx();
+  if (grid === GRID_X && geo && geo.userData && geo.userData.grid === grid) return;
+  swapCoverParticleGeometry(grid);
 }
 
 function scheduleCoverResolutionReload() {
@@ -332,12 +390,14 @@ var uniforms = {
   uBurstAmt: { value: 0 },          // 通用预设切换脉冲 0..1
   uVinylSpin: { value: 0 },
   uPreset: { value: 0 },
+  uParticleCount: { value: 1.0 },   // 粒子数量 0.1..1.0, 按 aRand 随机保留比例
   uIntensity: { value: 0.85 },
   uDepth: { value: 1.0 },
   uPointScale: { value: 1.0 },
   uSpeed: { value: 1.0 },
   uTwist: { value: 0 },
   uColorBoost: { value: 1.1 },
+  uBright: { value: 1.0 },
   uScatter: { value: 0 },
   uCoverRes: { value: 1.0 },
   uBgFade: { value: 0.20 },
@@ -375,7 +435,7 @@ applyRendererPowerMode();
 var vs = `
 precision highp float;
 uniform float uTime, uBass, uMid, uTreble, uBeat, uEnergy, uBurstAmt;
-uniform float uPreset, uIntensity, uDepth, uPointScale, uSpeed, uTwist;
+uniform float uPreset, uParticleCount, uIntensity, uDepth, uPointScale, uSpeed, uTwist;
 uniform float uVinylSpin;
 uniform float uColorBoost, uScatter, uCoverRes, uBgFade;
 uniform float uHasCover, uHasDepth, uEdgeEnabled, uAiBoost;
@@ -475,6 +535,13 @@ maxAmp = max(maxAmp, abs(local));
 }
 
 void main(){
+  // 粒子数量裁剪: aRand 均匀随机, 阈值直接决定保留比例; 裁掉的粒子移出视锥且不参与后续计算
+  if (aRand > uParticleCount) {
+vColor = vec3(0.0); vBright = 0.0; vRipple = 0.0; vEdgeBoost = 0.0; vAlpha = 0.0; vSourceLum = 0.0;
+gl_PointSize = 0.0;
+gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+return;
+  }
   float t = uTime * uSpeed;
   vec3 pos;
   vec2 sampleUv = safeCoverUv(aUv);
@@ -849,7 +916,7 @@ sz = clamp(depthSize * (0.90 + ringDrive * 0.62), 1.05, 3.90);
 var fs = `
 precision highp float;
 uniform sampler2D uDotTex;
-uniform float uAlpha, uPreset, uParticleDim;
+uniform float uAlpha, uPreset, uParticleDim, uBright;
 varying vec3 vColor;
 varying float vBright, vRipple, vEdgeBoost, vAlpha, vSourceLum;
 
@@ -868,6 +935,10 @@ void main(){
   float darkParticle = (1.0 - smoothstep(0.20, 0.50, outLum)) * nonBlack;
   col = mix(col, vec3(0.0), readableRim * lightParticle * 0.38);
   col = mix(col, vec3(1.0), readableRim * darkParticle * 0.20);
+  // 色相保持亮度 (uBright): 乘完若越界, 全通道按最大值等比缩回, 不削成白色
+  col *= uBright;
+  float mBright = max(col.r, max(col.g, col.b));
+  if (mBright > 1.0) col /= mBright;
   col = clamp(col, vec3(0.0), vec3(1.6));
   gl_FragColor = vec4(col, tex.a * uAlpha * uParticleDim * vAlpha);
 }
@@ -884,7 +955,7 @@ var bloomVs = vs
 var bloomFs = `
 precision highp float;
 uniform sampler2D uDotTex;
-uniform float uAlpha, uBloomStrength, uPreset, uParticleDim;
+uniform float uAlpha, uBloomStrength, uPreset, uParticleDim, uBright;
 varying vec3 vColor;
 varying float vBright, vRipple, vEdgeBoost, vAlpha, vSourceLum;
 
@@ -894,6 +965,10 @@ void main(){
   float soft = tex.a * tex.a;
   vec3 col = vColor * (0.55 + vBright * 0.62);
   col = mix(col, col + vec3(0.22, 0.18, 0.10), vEdgeBoost * 0.35);
+  // 色相保持亮度 (uBright)
+  col *= uBright;
+  float mBright = max(col.r, max(col.g, col.b));
+  if (mBright > 1.0) col /= mBright;
   col = clamp(col, vec3(0.0), vec3(1.8));
   float pulse = 1.0 + vRipple * 0.65;
   float keepBlack = 1.0 - smoothstep(0.025, 0.115, vSourceLum);

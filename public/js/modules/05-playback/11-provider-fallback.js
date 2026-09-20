@@ -750,6 +750,12 @@ function handlePlaybackUnavailable(song, data) {
   var provider = playbackLoginProvider(song);
   var notice = playbackRestrictionNotice(song, data);
   var category = notice.category;
+  // 落雪音源激活时: 不再弹登录入口, lx 兜底已在此前尝试过 → 统一提示无音源
+  if (typeof lxSourceActiveForPlayback === 'function' && lxSourceActiveForPlayback()) {
+    showToast('无音源! 落雪音源未能解析「' + ((song && (song.name || song.title)) || '这首歌') + '」');
+    showSourceFallbackNotice('无音源!', '落雪音源与官方接口都未能找到可播放的版本。');
+    return;
+  }
   showToast(notice.toast || notice.title || playbackRestrictionMessage(song, data));
   showSourceFallbackNotice(notice.title, notice.body);
   if (category === 'login_required') {

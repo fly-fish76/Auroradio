@@ -41,7 +41,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
-public static class MineradioWePointerTargetProbe {
+public static class AuroradioWePointerTargetProbe {
   const uint WM_MOUSEMOVE = 0x0200;
   public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
   [StructLayout(LayoutKind.Sequential)] struct RECT { public int Left, Top, Right, Bottom; }
@@ -137,7 +137,7 @@ public static class MineradioWePointerTargetProbe {
 }
 '@
 Add-Type -TypeDefinition $source -Language CSharp
-[MineradioWePointerTargetProbe]::Run($expectedTitle, $targetMode, $xUnit, $yUnit) | ConvertTo-Json -Compress
+[AuroradioWePointerTargetProbe]::Run($expectedTitle, $targetMode, $xUnit, $yUnit) | ConvertTo-Json -Compress
 `.trim();
 }
 
@@ -162,15 +162,15 @@ function postPointer(target, xUnit, yUnit) {
   return JSON.parse(String(stdout || '').trim());
 }
 
-async function captureMineradio(label) {
+async function captureAuroradio(label) {
   const sources = await desktopCapturer.getSources({
     types: ['window'],
     thumbnailSize: { width: 1440, height: 810 },
     fetchWindowIcons: false,
   });
-  const matches = sources.filter((source) => source.name === 'Mineradio');
+  const matches = sources.filter((source) => source.name === 'Auroradio');
   if (matches.length !== 1) {
-    throw new Error(`Expected one Mineradio window capture source, found ${matches.length}`);
+    throw new Error(`Expected one Auroradio window capture source, found ${matches.length}`);
   }
   const image = matches[0].thumbnail;
   const size = image.getSize();
@@ -201,14 +201,14 @@ function meanAbsoluteRgb(first, second) {
 async function captureAfter(target, side, xUnit) {
   const posted = postPointer(target, xUnit, 32768);
   await wait(settleMs);
-  const capture = await captureMineradio(`${target}-${side}`);
+  const capture = await captureAuroradio(`${target}-${side}`);
   return { posted, capture };
 }
 
 async function run() {
-  if (!sourceTitle) throw new Error('Pass --source-title with the exact Mineradio Wallpaper session title');
+  if (!sourceTitle) throw new Error('Pass --source-title with the exact Auroradio Wallpaper session title');
   fs.mkdirSync(outputDirectory, { recursive: true });
-  const baseline = await captureMineradio('baseline');
+  const baseline = await captureAuroradio('baseline');
   const parentLeft = await captureAfter('parent', 'left', 4096);
   const parentRight = await captureAfter('parent', 'right', 61439);
   const childLeft = await captureAfter('child', 'left', 4096);

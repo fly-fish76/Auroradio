@@ -323,7 +323,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class MineradioExplorerParentLauncher {
+public static class AuroradioExplorerParentLauncher {
   const uint PROCESS_CREATE_PROCESS = 0x0080;
   const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
   const uint TOKEN_QUERY = 0x0008;
@@ -535,7 +535,7 @@ public static class MineradioExplorerParentLauncher {
 '@
 Add-Type -TypeDefinition $source -Language CSharp
 $workingDirectory = [IO.Path]::GetDirectoryName($target)
-[void][MineradioExplorerParentLauncher]::Launch($target, $commandLine, $workingDirectory, $waitForExit, $waitTimeout)
+[void][AuroradioExplorerParentLauncher]::Launch($target, $commandLine, $workingDirectory, $waitForExit, $waitTimeout)
 `.trim();
   return Buffer.from(source, 'utf16le').toString('base64');
 }
@@ -561,7 +561,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
-public sealed class MineradioWeWindowResult {
+public sealed class AuroradioWeWindowResult {
   public bool ok { get; set; }
   public bool missing { get; set; }
   public bool moved { get; set; }
@@ -584,7 +584,7 @@ public sealed class MineradioWeWindowResult {
   public long hostBottom { get; set; }
 }
 
-public static class MineradioWeWindowControl {
+public static class AuroradioWeWindowControl {
   const uint WM_CLOSE = 0x0010;
   const int SM_XVIRTUALSCREEN = 76;
   const int SM_YVIRTUALSCREEN = 77;
@@ -626,7 +626,7 @@ public static class MineradioWeWindowControl {
     return text.ToString();
   }
 
-  static MineradioWeWindowResult Snapshot(IntPtr hWnd, uint processId) {
+  static AuroradioWeWindowResult Snapshot(IntPtr hWnd, uint processId) {
     RECT rect;
     if (!GetWindowRect(hWnd, out rect)) throw new Win32Exception(Marshal.GetLastWin32Error());
     int virtualLeft = GetSystemMetrics(SM_XVIRTUALSCREEN);
@@ -635,7 +635,7 @@ public static class MineradioWeWindowControl {
     int virtualBottom = virtualTop + Math.Max(1, GetSystemMetrics(SM_CYVIRTUALSCREEN));
     long visibleWidth = Math.Max(0, Math.Min(rect.Right, virtualRight) - Math.Max(rect.Left, virtualLeft));
     long visibleHeight = Math.Max(0, Math.Min(rect.Bottom, virtualBottom) - Math.Max(rect.Top, virtualTop));
-    return new MineradioWeWindowResult {
+    return new AuroradioWeWindowResult {
       ok = true,
       left = rect.Left,
       top = rect.Top,
@@ -679,14 +679,14 @@ public static class MineradioWeWindowControl {
     return true;
   }
 
-  static MineradioWeWindowResult RunDpiAware(string action, string sourceId, string expectedTitle, string expectedExecutable, string hostWindowId, string hostExecutable, string hostCornerRadius) {
+  static AuroradioWeWindowResult RunDpiAware(string action, string sourceId, string expectedTitle, string expectedExecutable, string hostWindowId, string hostExecutable, string hostCornerRadius) {
     IntPtr hWnd = ParseHandle(sourceId);
-    if (!IsWindow(hWnd)) return new MineradioWeWindowResult { ok = true, missing = true };
+    if (!IsWindow(hWnd)) return new AuroradioWeWindowResult { ok = true, missing = true };
     if (!String.Equals(WindowTitle(hWnd), expectedTitle ?? "", StringComparison.Ordinal)) throw new InvalidOperationException("Capture window title mismatch");
     uint processId = ValidateProcess(hWnd, expectedExecutable);
 
     if (String.Equals(action, "close", StringComparison.OrdinalIgnoreCase)) {
-      MineradioWeWindowResult closeResult = Snapshot(hWnd, processId);
+      AuroradioWeWindowResult closeResult = Snapshot(hWnd, processId);
       closeResult.closePosted = PostMessageW(hWnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
       if (!closeResult.closePosted) throw new Win32Exception(Marshal.GetLastWin32Error());
       Stopwatch closeWait = Stopwatch.StartNew();
@@ -710,7 +710,7 @@ public static class MineradioWeWindowControl {
           SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING)) {
         throw new Win32Exception(Marshal.GetLastWin32Error());
       }
-      MineradioWeWindowResult parkResult = Snapshot(hWnd, processId);
+      AuroradioWeWindowResult parkResult = Snapshot(hWnd, processId);
       parkResult.moved = true;
       parkResult.parked = parkResult.visibleWidth <= 1 && parkResult.visibleHeight <= 1;
       if (!parkResult.parked) throw new InvalidOperationException("Capture source window did not enter the parking strip");
@@ -730,7 +730,7 @@ public static class MineradioWeWindowControl {
       || Math.Abs(sourceRect.Top - hostRect.Top) > tolerance
       || Math.Abs(sourceRect.Right - hostRect.Right) > tolerance
       || Math.Abs(sourceRect.Bottom - hostRect.Bottom) > tolerance);
-    MineradioWeWindowResult result = Snapshot(hWnd, processId);
+    AuroradioWeWindowResult result = Snapshot(hWnd, processId);
     result.moved = false;
     result.embedded = true;
     result.aligned = aligned;
@@ -742,7 +742,7 @@ public static class MineradioWeWindowControl {
     return result;
   }
 
-  public static MineradioWeWindowResult Run(string action, string sourceId, string expectedTitle, string expectedExecutable, string hostWindowId, string hostExecutable, string hostCornerRadius) {
+  public static AuroradioWeWindowResult Run(string action, string sourceId, string expectedTitle, string expectedExecutable, string hostWindowId, string hostExecutable, string hostCornerRadius) {
     IntPtr previousDpiContext = IntPtr.Zero;
     try {
       // powershell.exe has no PMv2 manifest, so GetWindowRect otherwise returns
@@ -760,7 +760,7 @@ public static class MineradioWeWindowControl {
 }
 '@
 Add-Type -TypeDefinition $source -Language CSharp
-[MineradioWeWindowControl]::Run($action, $sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $hostCornerRadius) | ConvertTo-Json -Compress
+[AuroradioWeWindowControl]::Run($action, $sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $hostCornerRadius) | ConvertTo-Json -Compress
 `.trim();
   return Buffer.from(source, 'utf16le').toString('base64');
 }
@@ -788,7 +788,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class MineradioWeParallaxPointerRelay {
+public static class AuroradioWeParallaxPointerRelay {
   const uint WM_MOUSEMOVE = 0x0200;
   const uint GA_ROOT = 2;
 
@@ -982,7 +982,7 @@ public static class MineradioWeParallaxPointerRelay {
 }
 '@
 Add-Type -TypeDefinition $source -Language CSharp
-[MineradioWeParallaxPointerRelay]::Run($sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $sessionId)
+[AuroradioWeParallaxPointerRelay]::Run($sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $sessionId)
 `.trim();
   return Buffer.from(source, 'utf16le').toString('base64');
 }
@@ -1014,7 +1014,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
-public sealed class MineradioWeDwmSurfaceHost : Form {
+public sealed class AuroradioWeDwmSurfaceHost : Form {
   [StructLayout(LayoutKind.Sequential)]
   struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 
@@ -1124,7 +1124,7 @@ public sealed class MineradioWeDwmSurfaceHost : Form {
   int consecutiveFollowFailures = 0;
   IntPtr desktopIconHost = IntPtr.Zero;
 
-  MineradioWeDwmSurfaceHost(IntPtr host, IntPtr source, string expectedTitle, int cornerRadius,
+  AuroradioWeDwmSurfaceHost(IntPtr host, IntPtr source, string expectedTitle, int cornerRadius,
       bool enableDesktopIconLayering) {
     hostWindow = host;
     sourceWindow = source;
@@ -1138,7 +1138,7 @@ public sealed class MineradioWeDwmSurfaceHost : Form {
     ShowInTaskbar = true;
     StartPosition = FormStartPosition.Manual;
     BackColor = Color.Black;
-    Text = "Mineradio WE DWM Surface";
+    Text = "Auroradio WE DWM Surface";
     followTimer = new System.Windows.Forms.Timer();
     followTimer.Interval = 60;
     followTimer.Tick += delegate {
@@ -1357,7 +1357,7 @@ public sealed class MineradioWeDwmSurfaceHost : Form {
     // existing control bar, avoiding an extra transparent layer in the UI.
     // In desktop coexistence the authoritative Electron HWND is a shaped child
     // above DefView inside Explorer's icon WorkerW. Keep that same icon host
-    // between Mineradio and the one base DWM surface. Normal top-level windows
+    // between Auroradio and the one base DWM surface. Normal top-level windows
     // may opt in too; unrelated WorkerW children retain the exact fallback.
     IntPtr hostRoot = GetAncestor(hostWindow, GA_ROOT);
     // A hot flag change may overlap the native reparenting transition by one
@@ -1423,14 +1423,14 @@ public sealed class MineradioWeDwmSurfaceHost : Form {
     bool enableDesktopIconLayering = String.Equals(rawDesktopIconLayering, "1", StringComparison.Ordinal);
     Application.EnableVisualStyles();
     Application.SetCompatibleTextRenderingDefault(false);
-    Application.Run(new MineradioWeDwmSurfaceHost(host, source, expectedTitle, cornerRadius,
+    Application.Run(new AuroradioWeDwmSurfaceHost(host, source, expectedTitle, cornerRadius,
       enableDesktopIconLayering));
   }
 }
 '@
 Add-Type -ReferencedAssemblies @('System.Windows.Forms', 'System.Drawing') -TypeDefinition $source -Language CSharp
 try {
-  [MineradioWeDwmSurfaceHost]::Run($sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $hostCornerRadius, $desktopIconLayering)
+  [AuroradioWeDwmSurfaceHost]::Run($sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $hostCornerRadius, $desktopIconLayering)
 } catch {
   [Console]::Error.WriteLine($_.Exception.ToString())
   if ($_.Exception.InnerException) { [Console]::Error.WriteLine($_.Exception.InnerException.ToString()) }
@@ -1554,7 +1554,7 @@ class WallpaperEngineRuntime {
     this.nativeTempPath = path.resolve(String(
       options.nativeTempPath
       || process.env.MINERADIO_NATIVE_TEMP_DIR
-      || path.join(process.env.LOCALAPPDATA || process.env.APPDATA || process.cwd(), 'Mineradio', 'native-helper-temp')
+      || path.join(process.env.LOCALAPPDATA || process.env.APPDATA || process.cwd(), 'Auroradio', 'native-helper-temp')
     ));
     fs.mkdirSync(this.nativeTempPath, { recursive: true });
     this.nativeExecFile = options.nativeExecFile || childProcess.execFile;
@@ -2125,7 +2125,7 @@ class WallpaperEngineRuntime {
     if (options.allowDirectSourceId === true) {
       return {
         id: `window:${expectedWindowId}:0`,
-        name: 'Mineradio WE DWM Surface',
+        name: 'Auroradio WE DWM Surface',
         directWindowSource: true,
       };
     }
@@ -2150,7 +2150,7 @@ class WallpaperEngineRuntime {
       const matched = sources.find((source) => {
         const match = /^window:(\d+):\d+$/.exec(String(source && source.id || ''));
         return !!match && match[1] === expectedWindowId
-          && String(source && source.name || '') === 'Mineradio WE DWM Surface';
+          && String(source && source.name || '') === 'Auroradio WE DWM Surface';
       });
       if (matched) return matched;
       await this.sleep(pollMs);
@@ -2680,7 +2680,7 @@ class WallpaperEngineRuntime {
     const packageVolume = path.parse(path.resolve(scenePackage)).root.toLowerCase();
     const preferredStageRoot = nativeVolume === packageVolume
       ? path.resolve(this.nativeTempPath, 'wallpaper-engine-scene-stage')
-      : path.resolve(path.parse(scenePackage).root, 'MineradioCache', 'wallpaper-engine-scene-stage');
+      : path.resolve(path.parse(scenePackage).root, 'AuroradioCache', 'wallpaper-engine-scene-stage');
     let stageRoot = preferredStageRoot;
     try {
       await fs.promises.mkdir(stageRoot, { recursive: true });
@@ -2910,7 +2910,7 @@ class WallpaperEngineRuntime {
     const muted = await this._applySessionMute(session);
     if (!muted || this.active !== session || session.stopping === true) return false;
     if (!session.windowEmbedding || session.windowEmbedding.aligned !== true) return false;
-    // Keep the native WE source physically aligned behind Mineradio so the
+    // Keep the native WE source physically aligned behind Auroradio so the
     // engine continues to read the real Windows cursor. DWM mirrors that live
     // surface into a click-through helper directly beneath the transparent
     // Electron host; unlike Chromium window capture, it does not bake a second
@@ -3761,7 +3761,7 @@ class WallpaperEngineRuntime {
     const session = {
       id: String(id || '').toLowerCase(),
       sessionId,
-      locationTitle: `Mineradio Wallpaper ${sessionId}`,
+      locationTitle: `Auroradio Wallpaper ${sessionId}`,
       sourceId: '',
       windowSourceId: '',
       windowEmbedding: null,

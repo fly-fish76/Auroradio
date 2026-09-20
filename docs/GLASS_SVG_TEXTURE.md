@@ -1,4 +1,4 @@
-# Mineradio SVG Glass Texture
+# Auroradio SVG Glass Texture
 
 这是用户明确要求保存的播放器 SVG 玻璃质感基线。后续可以修补偏移、缺角、套用范围和响应式问题，但不要随意重写核心质感。
 
@@ -112,18 +112,18 @@ Search reveal surface rule: search must mirror the bottom bar reveal. Hidden `#s
 
 ## Wallpaper Engine Single-Surface Rule
 
-2026-07-18 用户明确否定了额外的“可直接透明”玻璃层。旧方案 `Mineradio WE Glass Refraction`、第二个圆角 DWM 面、`DwmQueryThumbnailSourceSize` 局部取样与 `1.105` 放大/错位全部失效，禁止恢复。
+2026-07-18 用户明确否定了额外的“可直接透明”玻璃层。旧方案 `Auroradio WE Glass Refraction`、第二个圆角 DWM 面、`DwmQueryThumbnailSourceSize` 局部取样与 `1.105` 放大/错位全部失效，禁止恢复。
 
 当前唯一允许的实现：
 
-- 原生层只有一个全窗 `Mineradio WE DWM Surface`；精确 WE 源窗仍在它下面保持真实 Windows 鼠标视差。
+- 原生层只有一个全窗 `Auroradio WE DWM Surface`；精确 WE 源窗仍在它下面保持真实 Windows 鼠标视差。
 - `#wallpaper-engine-glass-sampler` 只裁切真实 `#bottom-bar`；内部视频保持完整视口 1:1 对齐，不做缩放镜片或二次折射。
 - 采样源 HWND 必须与唯一基础 DWM HWND 相同。运行时兼容字段 `dwmGlassSurfaceWindowId` 只是该 HWND 的别名，不代表第二个窗口。
 - 采样流必须在 DWM 缩略图激活前对普通基础 HWND 建立；捕获首帧后再激活同一 HWND 的 DWM 缩略图，并在预热黑帧变成真实壁纸像素后才添加 `wallpaper-engine-glass-sampler-ready`。
 - 最终扭曲和 RGB 色散只由既有 `#mineradio-control-glass-filter` 产生。Red `180`、Green `170`、Blue `160`、共同中心 `-90`、`screen` 混合、`stdDeviation=0.5` 等冻结参数不因 WE 接入改变。
 - 采样 HWND 本身没有光标画面；不得用读取/隐藏/替换系统光标或 DOM 假光标处理捕获。Scene 停止、切换、隐藏或退出时必须停止该 MediaStream。
 
-验收时同时检查：`Mineradio WE Glass Refraction` 窗口数为 `0`、基础 HWND 与采样源 HWND 相等、采样视频轨为 `live` 且无音频、采样器矩形与控制台矩形一致、最大化/还原后仍对齐。
+验收时同时检查：`Auroradio WE Glass Refraction` 窗口数为 `0`、基础 HWND 与采样源 HWND 相等、采样视频轨为 `live` 且无音频、采样器矩形与控制台矩形一致、最大化/还原后仍对齐。
 
 ## Safe Change Rules
 

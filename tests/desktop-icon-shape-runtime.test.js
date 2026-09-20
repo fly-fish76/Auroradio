@@ -79,7 +79,7 @@ test('inward high-DPI mapping does not expose an extra Explorer background fring
   assert.deepEqual(converted, [{ x: 11, y: 11, width: 86, height: 72 }]);
 });
 
-test('protected shield restores Mineradio input over an icon hole', () => {
+test('protected shield restores Auroradio input over an icon hole', () => {
   const rects = computeDesktopShapeRects({
     bounds: { x: -100, y: 20, width: 400, height: 240 },
     iconRects: [{ x: -80, y: 40, width: 80, height: 80 }],
@@ -154,7 +154,7 @@ test('probe parser normalizes physical icon rectangles', () => {
 test('exec wrapper invokes hidden PowerShell and parses the probe ack', async () => {
   let invocation = null;
   const result = await probeDesktopIcons({
-    nativeTempPath: 'D:\\MineradioCache\\native-helper-temp',
+    nativeTempPath: 'D:\\AuroradioCache\\native-helper-temp',
     execFileImpl: (file, args, options, callback) => {
       invocation = { file, args, options };
       callback(null, JSON.stringify({
@@ -173,7 +173,7 @@ test('exec wrapper invokes hidden PowerShell and parses the probe ack', async ()
   assert.equal(result.ok, true);
   assert.equal(invocation.file, 'powershell.exe');
   assert.equal(invocation.options.windowsHide, true);
-  assert.equal(invocation.options.env.TEMP, 'D:\\MineradioCache\\native-helper-temp');
+  assert.equal(invocation.options.env.TEMP, 'D:\\AuroradioCache\\native-helper-temp');
   assert.match(invocation.args.at(-1), /LVM_GETITEMRECT/);
 });
 

@@ -36,25 +36,25 @@ function resolveRcedit(projectDir) {
   }
   candidates.push(path.join(projectDir, 'node_modules', 'electron-winstaller', 'vendor', 'rcedit.exe'));
   var hit = candidates.find(function(candidate) { return candidate && fs.existsSync(candidate); });
-  if (!hit) throw new Error('No usable rcedit executable was found for Mineradio icon injection.');
+  if (!hit) throw new Error('No usable rcedit executable was found for Auroradio icon injection.');
   return hit;
 }
 
 module.exports = async function afterPack(context) {
   if (context.electronPlatformName !== 'win32') return;
 
-  const appName = context.packager.appInfo.productFilename || 'Mineradio';
+  const appName = context.packager.appInfo.productFilename || 'Auroradio';
   const productName = context.packager.appInfo.productName || appName;
   const companyName = context.packager.appInfo.companyName || productName;
   const exePath = path.join(context.appOutDir, `${appName}.exe`);
   const iconPath = path.join(context.packager.info.buildResourcesDir, 'icon.ico');
   const rceditPath = resolveRcedit(context.packager.projectDir);
 
-  if (!fs.existsSync(exePath)) throw new Error(`Mineradio executable was not found: ${exePath}`);
-  if (!fs.existsSync(iconPath)) throw new Error(`Mineradio icon was not found: ${iconPath}`);
+  if (!fs.existsSync(exePath)) throw new Error(`Auroradio executable was not found: ${exePath}`);
+  if (!fs.existsSync(iconPath)) throw new Error(`Auroradio icon was not found: ${iconPath}`);
 
   const version = context.packager.appInfo.version;
-  console.log(`  • injecting Mineradio resources  rcedit=${rceditPath}`);
+  console.log(`  • injecting Auroradio resources  rcedit=${rceditPath}`);
   execFileSync(rceditPath, [
     exePath,
     '--set-icon', iconPath,

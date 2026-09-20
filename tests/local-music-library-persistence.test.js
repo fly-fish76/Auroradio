@@ -25,7 +25,7 @@ function blockHeader(type, length, last) {
 }
 
 function vorbisCommentBlock(comments) {
-  const vendor = Buffer.from('Mineradio test', 'utf8');
+  const vendor = Buffer.from('Auroradio test', 'utf8');
   const parts = [];
   const vendorLength = Buffer.alloc(4);
   vendorLength.writeUInt32LE(vendor.length);

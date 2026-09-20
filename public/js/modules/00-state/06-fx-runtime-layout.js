@@ -31,14 +31,15 @@ function clampPlaylistPanelFxSettings() {
   fx.playlistPanelCloseDuration = clampRange(fx.playlistPanelCloseDuration == null ? fxDefaults.playlistPanelCloseDuration : Number(fx.playlistPanelCloseDuration), 0.06, 0.48);
 }
 function playlistPanelAlphaVars(density) {
-  density = clampRange(Number(density) || fxDefaults.playlistPanelGlassDensity, 0.55, 1);
+  // 头部/工具栏固定完全不透明：半透明时滚动的歌曲会从头部下方透出形成重影。
+  // 玻璃浓度滑杆保留，但不再影响头部透明度。
   return {
-    sticky1: clampRange(0.52 + density * 0.46, 0.55, 0.98),
-    sticky2: clampRange(0.46 + density * 0.48, 0.50, 0.94),
-    sticky3: clampRange(0.28 + density * 0.56, 0.36, 0.84),
-    toolbar1: clampRange(0.48 + density * 0.46, 0.52, 0.94),
-    toolbar2: clampRange(0.42 + density * 0.46, 0.46, 0.88),
-    toolbar3: clampRange(0.24 + density * 0.48, 0.30, 0.74)
+    sticky1: 1,
+    sticky2: 1,
+    sticky3: 1,
+    toolbar1: 1,
+    toolbar2: 1,
+    toolbar3: 1
   };
 }
 function setPlaylistPanelCssVar(name, value) {

@@ -128,6 +128,7 @@ function applyColorLabValue(hex, silent) {
   if (colorLabState.picker) colorLabState.picker.value = hex;
   if (id === 'ui-accent-picker') setUiAccentColor(hex, true);
   else if (id === 'visual-tint-picker') setVisualTintCustom(hex, true);
+  else if (id === 'phoenix-color-picker') setPhoenixSolidColor(hex, true);
   else if (id === 'home-accent-picker') setHomeAccentColor(hex, true);
   else if (id === 'home-icon-picker') setHomeIconColor(hex, true);
   else if (id === 'visual-icon-picker') setVisualIconColor(hex, true);

@@ -99,7 +99,7 @@ var LYRIC_LAYOUT_STORE_KEY = 'mineradio-lyric-layout-v1';
 var CURRENT_FX_AUTOSAVE_STORE_KEY = 'mineradio-current-fx-autosave-v1';
 var CURRENT_FX_AUTOSAVE_SCHEMA = 'current-fx-autosave-v2';
 var VISUAL_PRESET_SCHEMA = 'skull-preset-v2';
-var MAX_VISUAL_PRESET_INDEX = 8;
+var MAX_VISUAL_PRESET_INDEX = 9;
 var SONIC_PRESET_INDEX = 7;
 var SONIC_WORKSHOP_PRESET_INDEX = 8;
 var PLAYBACK_QUALITY_STORE_KEY = 'mineradio-playback-quality-v1';
@@ -109,7 +109,7 @@ var AUDIO_INPUT_BRIDGE_STORE_KEY = 'mineradio-audio-input-bridge-v1';
 var PROVIDER_VIP_AUDIT_STORE_KEY = 'mineradio-provider-vip-audit-v1';
 var QQ_PLAYBACK_VIP_EVIDENCE_STORE_KEY = 'mineradio-qq-playback-vip-evidence-v1';
 var LOGIN_COOKIE_EXPORT_STORE_KEY = 'mineradio-login-cookie-export-v1';
-var PLAYBACK_QUALITY_DEFAULTS = { netease: 'hires', qq: 'lossless', kugou: 'lossless', qishui: 'standard', spotify: 'standard' };
+var PLAYBACK_QUALITY_DEFAULTS = { netease: 'hires', qq: 'lossless', kugou: 'lossless', qishui: 'standard', spotify: 'standard', lx: 'lossless' };
 var PLAYBACK_QUALITY_OPTIONS = {
   netease: [
     { key: 'jymaster', title: '超清母带', sub: 'SVIP / 最高规格', svip: true },
@@ -135,6 +135,12 @@ var PLAYBACK_QUALITY_OPTIONS = {
   ],
   spotify: [
     { key: 'standard', title: 'Spotify 匹配源', sub: 'SP 搜索 / 播放自动换源' }
+  ],
+  lx: [
+    { key: 'hires', title: 'Hi-Res', sub: '落雪 flac24bit / 优先尝试' },
+    { key: 'lossless', title: '无损 FLAC', sub: '落雪 flac / 稳定优先' },
+    { key: 'exhigh', title: '320k', sub: '落雪高品质' },
+    { key: 'standard', title: '128k', sub: '兼容优先' }
   ]
 };
 var UPLOAD_TIP_STORE_KEY = 'mineradio-upload-tip-seen';

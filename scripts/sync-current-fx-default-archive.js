@@ -11,7 +11,7 @@ const archivePath = path.join(appRoot, 'public', 'default-user-fx-archive.json')
 const sourceArgIndex = process.argv.indexOf('--source');
 const sourcePath = sourceArgIndex >= 0 && process.argv[sourceArgIndex + 1]
   ? path.resolve(process.argv[sourceArgIndex + 1])
-  : path.join(process.env.APPDATA || '', 'Mineradio', 'current-fx-autosave.json');
+  : path.join(process.env.APPDATA || '', 'Auroradio', 'current-fx-autosave.json');
 const shouldWrite = process.argv.includes('--write');
 
 function readFxDefaults() {

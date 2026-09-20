@@ -1,5 +1,5 @@
 const { analyzeSectionCandidates, chooseTransitionCandidates } = require('./section-candidates');
-const { normalizeMineradioBeatMap } = require('./adapter-mineradio');
+const { normalizeAuroradioBeatMap } = require('./adapter-mineradio');
 const { buildCueProfile } = require('./cue-profile');
 const { parseLrc } = require('./lrc-anchors');
 const { planRecipeCandidates } = require('./recipe-planner');
@@ -30,7 +30,7 @@ function parseMaybeLrc(value) {
 
 function normalizedFixture(entry, key) {
   const track = toTrack(entry, key);
-  const analysis = normalizeMineradioBeatMap(track, entry.map || {});
+  const analysis = normalizeAuroradioBeatMap(track, entry.map || {});
   return {
     track,
     map: {

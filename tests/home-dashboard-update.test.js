@@ -84,7 +84,7 @@ test('new home discovery strip is present in the homepage DOM', () => {
   assert.equal(
     hasClassTag(indexHtml, 'section', 'home-discovery-strip'),
     true,
-    'expected a section.home-discovery-strip on the Mineradio homepage',
+    'expected a section.home-discovery-strip on the Auroradio homepage',
   );
   assert.equal(
     hasIdAndClassTag(indexHtml, 'div', 'home-discovery-list', 'home-discovery-list'),
@@ -116,7 +116,7 @@ test('dashboard selects local discovery candidates and keeps cover swaps stable'
   assert.ok(stableCoverCalls.length >= 3, 'stable cover helper should be used by more than one homepage surface');
 });
 
-test('discovery song playback uses the existing Mineradio queue path', () => {
+test('discovery song playback uses the existing Auroradio queue path', () => {
   assert.ok(
     namedFunctionSource(dashboardScript, 'renderHomeDashboardDiscovery'),
     'expected renderHomeDashboardDiscovery()',

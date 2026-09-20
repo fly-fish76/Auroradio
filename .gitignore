@@ -67,3 +67,12 @@ tmp/
 *.png.tmp
 verification/
 screenshots/
+
+# lx 音源宿主：单独上传到 lx-source 仓库，不进主仓库
+desktop/lx-source/
+
+# 根目录遗留的旧版入口副本（真实入口在 desktop/main.js）
+/main.js
+
+# 本地 AI 工具工作区
+.zcode/

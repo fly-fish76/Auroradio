@@ -16,6 +16,10 @@ function lyricTranslationTextFromAliases(source) {
 function lyricEndpointForSong(songOrId) {
   var song = (songOrId && typeof songOrId === 'object') ? songOrId : null;
   var provider = song ? songProviderKey(song) : 'netease';
+  if (provider === 'lx') {
+    // kw/mg 等 lx 歌曲暂无歌词端点 (脚本协议只提供 musicUrl)
+    return '';
+  }
   if (provider === 'qq') {
     var mid = song.mid || song.songmid || song.id || '';
     var qqId = song.qqId || (/^\d+$/.test(String(song.id || '')) ? song.id : '');
@@ -34,6 +38,22 @@ function lyricEndpointForSong(songOrId) {
   }
   var songId = song ? song.id : songOrId;
   return '/api/lyric?id=' + encodeURIComponent(songId);
+}
+
+// lx 歌曲 (kw/mg) 没有歌词端点 (脚本协议只提供 musicUrl):
+// 在网易云按歌名+歌手匹配同名歌, 借网易云的歌词
+async function fetchLyricResponseForSong(song) {
+  var endpoint = lyricEndpointForSong(song);
+  if (endpoint) return apiJson(endpoint);
+  var matched = (typeof lxMatchSongForResolution === 'function') ? await lxMatchSongForResolution(song) : null;
+  if (matched && matched.provider === 'netease' && matched.id) {
+    try {
+      return await apiJson('/api/lyric?id=' + encodeURIComponent(matched.id));
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 }
 
 function persistentLyricCacheKey(song) {
@@ -101,7 +121,8 @@ async function runQueueLyricPrefetch(fromIndex, token) {
     var cached = await readPersistentLyricCache(candidate.song);
     if (token !== lyricQueuePrefetchToken) return false;
     if (cached) return true;
-    var response = await apiJson(lyricEndpointForSong(candidate.song));
+    var response = await fetchLyricResponseForSong(candidate.song);
+    if (!response) return false;
     if (token !== lyricQueuePrefetchToken) return false;
     var merged = mergeInlineLyricResponseForSong(candidate.song, response || {});
     var state = parseLyricResponseToOriginalState(candidate.song, merged);
@@ -129,7 +150,8 @@ function applyFetchedLyricResponse(song, token, response, options) {
 }
 
 function refreshPersistentLyricCache(song) {
-  apiJson(lyricEndpointForSong(song)).then(function (response) {
+  fetchLyricResponseForSong(song).then(function (response) {
+    if (!response) return;
     var mergedResponse = mergeInlineLyricResponseForSong(song, response || {});
     var state = parseLyricResponseToOriginalState(song, mergedResponse);
     if (state && state.usableLyric) writePersistentLyricCache(song, mergedResponse);
@@ -346,7 +368,7 @@ async function fetchLyric(songOrId, token, attempt) {
         return;
       }
     }
-    var r = await apiJson(lyricEndpointForSong(song || songOrId));
+    var r = await fetchLyricResponseForSong(song || songOrId);
     var state = applyFetchedLyricResponse(song, token, r);
     if (!state) return;
     if (!state.usableLyric && shouldRetryStartupLyricFetch(song, token, attempt)) scheduleStartupLyricFetchRetry(song, token, attempt);

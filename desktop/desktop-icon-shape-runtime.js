@@ -59,16 +59,16 @@ function desktopIconProbeScript(options = {}) {
   const extraCSharp = String(options.extraCSharp || '');
   const invocation = options.invoke === false
     ? ''
-    : '[MineradioDesktopIconShapeNative]::Probe() | ConvertTo-Json -Compress -Depth 5';
+    : '[AuroradioDesktopIconShapeNative]::Probe() | ConvertTo-Json -Compress -Depth 5';
   return `
 $ErrorActionPreference = "Stop"
-if (-not ("MineradioDesktopIconShapeNative" -as [type])) {
+if (-not ("AuroradioDesktopIconShapeNative" -as [type])) {
 Add-Type @"
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-public static class MineradioDesktopIconShapeNative {
+public static class AuroradioDesktopIconShapeNative {
   public sealed class IconRect {
     public int x;
     public int y;
@@ -271,7 +271,7 @@ ${invocation}
 
 function desktopIconWatcherCSharpSource() {
   return `
-public static class MineradioDesktopIconShapeWatcherNative {
+public static class AuroradioDesktopIconShapeWatcherNative {
   [StructLayout(LayoutKind.Sequential)] private struct MSG {
     public IntPtr hwnd;
     public uint message;
@@ -376,12 +376,12 @@ public static class MineradioDesktopIconShapeWatcherNative {
     }
   }
 
-  private static string LayoutKey(MineradioDesktopIconShapeNative.ProbeResult result) {
+  private static string LayoutKey(AuroradioDesktopIconShapeNative.ProbeResult result) {
     System.Text.StringBuilder key = new System.Text.StringBuilder();
     key.Append(result.topLevelHostWindowId).Append('|').Append(result.iconHostWindowId)
       .Append('|').Append(result.listViewWindowId);
     if (result.icons != null) {
-      foreach (MineradioDesktopIconShapeNative.IconRect icon in result.icons) {
+      foreach (AuroradioDesktopIconShapeNative.IconRect icon in result.icons) {
         key.Append('|').Append(icon.x).Append(',').Append(icon.y).Append(',')
           .Append(icon.width).Append(',').Append(icon.height);
       }
@@ -389,7 +389,7 @@ public static class MineradioDesktopIconShapeWatcherNative {
     return key.ToString();
   }
 
-  private static void Emit(MineradioDesktopIconShapeNative.ProbeResult result, bool force) {
+  private static void Emit(AuroradioDesktopIconShapeNative.ProbeResult result, bool force) {
     string key = LayoutKey(result);
     if (!force && key == _lastLayoutKey) return;
     _lastLayoutKey = key;
@@ -403,7 +403,7 @@ public static class MineradioDesktopIconShapeWatcherNative {
     if (result.icons != null) {
       for (int index = 0; index < result.icons.Length; index++) {
         if (index > 0) json.Append(',');
-        MineradioDesktopIconShapeNative.IconRect icon = result.icons[index];
+        AuroradioDesktopIconShapeNative.IconRect icon = result.icons[index];
         json.Append("{\\\"x\\\":").Append(icon.x).Append(",\\\"y\\\":").Append(icon.y)
           .Append(",\\\"width\\\":").Append(icon.width).Append(",\\\"height\\\":").Append(icon.height).Append('}');
       }
@@ -422,7 +422,7 @@ public static class MineradioDesktopIconShapeWatcherNative {
 
   private static bool FindTarget(out IntPtr topLevelHost, out IntPtr iconHost, out IntPtr listView,
       out uint processId, out uint threadId) {
-    MineradioDesktopIconShapeNative.FindDesktopListView(out topLevelHost, out iconHost, out listView);
+    AuroradioDesktopIconShapeNative.FindDesktopListView(out topLevelHost, out iconHost, out listView);
     processId = 0;
     threadId = 0;
     if (listView == IntPtr.Zero) return false;
@@ -466,7 +466,7 @@ public static class MineradioDesktopIconShapeWatcherNative {
       }
     }
     if (changed || forceSnapshot) {
-      try { Emit(MineradioDesktopIconShapeNative.Probe(), changed || forceSnapshot); }
+      try { Emit(AuroradioDesktopIconShapeNative.Probe(), changed || forceSnapshot); }
       catch { EmitError("DESKTOP_ICON_PROBE_FAILED"); }
     }
   }
@@ -480,7 +480,7 @@ public static class MineradioDesktopIconShapeWatcherNative {
       }
     }
     if (!ready) return;
-    try { Emit(MineradioDesktopIconShapeNative.Probe(), false); }
+    try { Emit(AuroradioDesktopIconShapeNative.Probe(), false); }
     catch { EmitError("DESKTOP_ICON_PROBE_FAILED"); }
   }
 
@@ -504,7 +504,7 @@ public static class MineradioDesktopIconShapeWatcherNative {
       }
     });
     inputThread.IsBackground = true;
-    inputThread.Name = "Mineradio desktop icon watcher input";
+    inputThread.Name = "Auroradio desktop icon watcher input";
     inputThread.Start();
 
     UIntPtr timerId = UIntPtr.Zero;
@@ -542,7 +542,7 @@ function desktopIconWatcherScript(options = {}) {
   const debounceMs = Math.max(100, Math.min(180, Math.round(finiteNumber(options.debounceMs, 140))));
   const rebindMs = Math.max(1000, Math.min(10000, Math.round(finiteNumber(options.rebindMs, 2000))));
   return `${desktopIconProbeScript({ invoke: false, extraCSharp: desktopIconWatcherCSharpSource() })}
-[MineradioDesktopIconShapeWatcherNative]::Run(${debounceMs}, ${rebindMs})
+[AuroradioDesktopIconShapeWatcherNative]::Run(${debounceMs}, ${rebindMs})
 `;
 }
 

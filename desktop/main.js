@@ -21,14 +21,15 @@ const {
   LOGIN_EASTER_EGG_GATE_VERSION,
   LOGIN_EASTER_EGG_STATE_FILE,
 } = require('./login-easter-egg-gate');
-const { extractKugouAuth } = require('../kugou-api');
-const { qishuiCookieHasLogin } = require('../qishui-api');
+const { extractKugouAuth } = require('../services/kugou-api');
+const { qishuiCookieHasLogin } = require('../services/qishui-api');
+const lxSourceHost = require('./lx-source/host');
 const {
   getSpotifyOAuthConfig,
   buildSpotifyOAuthAuthorizeUrl,
   exchangeSpotifyOAuthCode,
   clearSpotifyToken,
-} = require('../spotify-api');
+} = require('../services/spotify-api');
 
 registerWallpaperEngineScheme(protocol);
 registerLocalMusicScheme(protocol);
@@ -76,11 +77,20 @@ let tray = null;
 let startupCompleted = false;
 let startupErrorReported = false;
 let localServerStartPromise = null;
+let loginGateInitializePromise = null;
 let mainWindowCreatePromise = null;
 let mainWindowRendererRecoveryPromise = null;
 let mainWindowRendererRecoveryAttempts = [];
 let mainWindowFullscreenVisibilityTimer = null;
-let startupState = { pid: process.pid, startedAt: Date.now(), phase: 'module-loaded', events: [] };
+// performance.now() 以进程创建时刻为原点：这个值 = exe 加载 + Electron/Chromium
+// 初始化的耗时（冷启动时主要被 Defender 扫描和冷磁盘读占掉），是对外排障的关键数字。
+let startupState = {
+  pid: process.pid,
+  startedAt: Date.now(),
+  processBootElapsedMs: Math.round(performance.now()),
+  phase: 'module-loaded',
+  events: [],
+};
 const registeredGlobalHotkeys = new Map();
 let fullDesktopEscapeRegistered = false;
 let fullDesktopEscapeExitPending = false;
@@ -101,7 +111,7 @@ const APP_PACKAGE_INFO = (() => {
   }
 })();
 const APP_METADATA = APP_PACKAGE_INFO.mineradio || {};
-const APP_NAME = process.env.MINERADIO_RUNTIME_NAME || APP_METADATA.runtimeName || APP_PACKAGE_INFO.productName || 'Mineradio';
+const APP_NAME = process.env.MINERADIO_RUNTIME_NAME || APP_METADATA.runtimeName || APP_PACKAGE_INFO.productName || 'Auroradio';
 const APP_USER_MODEL_ID = process.env.MINERADIO_APP_USER_MODEL_ID || APP_METADATA.appUserModelId || (APP_PACKAGE_INFO.build && APP_PACKAGE_INFO.build.appId) || 'com.mineradio.desktop';
 const APP_ICON_ICO = path.join(__dirname, '..', 'build', 'icon.ico');
 const CURRENT_FX_AUTOSAVE_FILE = 'current-fx-autosave.json';
@@ -111,7 +121,9 @@ const STARTUP_STATE_FILE = 'startup-state.json';
 const STARTUP_SERVER_TIMEOUT_MS = 10000;
 const STARTUP_HTTP_TIMEOUT_MS = 8000;
 const STARTUP_NAVIGATION_TIMEOUT_MS = 15000;
-const STARTUP_SHOW_WATCHDOG_MS = 3500;
+// 入口动画就绪兜底：动画迟迟跑不起来（冷启动极端情况）时，最多等这么久
+// 就先显示深色基底窗口，绝不让用户无限盯着桌面。
+const STARTUP_ANIMATION_SHOW_CAP_MS = 6000;
 const RENDERER_RECOVERY_WINDOW_MS = 2 * 60 * 1000;
 const RENDERER_RECOVERY_MAX_ATTEMPTS = 3;
 const FULLSCREEN_VISIBILITY_CHECK_MS = 5000;
@@ -135,12 +147,21 @@ const SPOTIFY_LOGIN_PARTITION = 'persist:mineradio-spotify-login';
 app.setName(APP_NAME);
 const STARTUP_QA_USER_DATA_PATH = (() => {
   const value = String(process.env.MINERADIO_STARTUP_QA_USER_DATA || '').trim();
-  if (process.env.MINERADIO_STARTUP_QA_HIDDEN !== '1' || !value || !path.isAbsolute(value)) return '';
+  // QA_VISIBLE：隔离数据目录但窗口保持可见（opacity=1），供屏幕逐帧采样等
+  // 需要真实画面的启动诊断使用；HIDDEN 模式窗口全透明，采不到像素。
+  const qaActive = process.env.MINERADIO_STARTUP_QA_HIDDEN === '1'
+    || process.env.MINERADIO_STARTUP_QA_VISIBLE === '1';
+  if (!qaActive || !value || !path.isAbsolute(value)) return '';
   return path.resolve(value);
 })();
-const STABLE_USER_DATA_PATH = STARTUP_QA_USER_DATA_PATH || path.join(app.getPath('appData'), APP_NAME);
+// 数据目录固定沿用历史名（Mineradio）：品牌更名为 Auroradio 后，
+// 已有用户数据（歌单/评分/登录凭据/chromium 会话分区）仍落在同一目录，不会丢失。
+// 展示名仍由 APP_NAME 提供，两者解耦。
+const APP_DATA_DIR_NAME = 'Mineradio';
+const STABLE_USER_DATA_PATH = STARTUP_QA_USER_DATA_PATH || path.join(app.getPath('appData'), APP_DATA_DIR_NAME);
 fs.mkdirSync(STABLE_USER_DATA_PATH, { recursive: true });
 app.setPath('userData', STABLE_USER_DATA_PATH);
+configureProviderCredentialEnvPaths();
 const INITIAL_CACHE_SETTINGS = ensureCacheDirectories(readCacheSettings());
 const loginEasterEggGate = new LoginEasterEggGate({
   userDataPath: STABLE_USER_DATA_PATH,
@@ -197,7 +218,11 @@ const WALLPAPER_ENGINE_CAPTURE_PREPARE_TIMEOUT_MS = 9000;
 const WALLPAPER_ENGINE_CAPTURE_RETRY_DELAY_MS = 720;
 const WALLPAPER_ENGINE_MAX_CAPTURE_FPS = 240;
 const WALLPAPER_ENGINE_HOST_RESUME_TIMEOUT_MS = 30000;
-const MAIN_WINDOW_BACKGROUND_THROTTLING = process.env.MINERADIO_KEEP_BACKGROUND_RENDERING === '1' ? false : true;
+// Chromium 的 backgroundThrottling 会在最小化时硬停合成器帧流; 透明窗口 (transparent:true)
+// 恢复后 rAF 实测不会自动恢复 (visibilityState=visible 但 rAF 0 帧) → 整窗透明看不到内容。
+// 后台降负由渲染进程 render-power 模块 (08-desktop-render-power.js) 按用户策略自行管理,
+// 因此这里必须保持关闭。MINERADIO_KEEP_BACKGROUND_RENDERING 旧开关保留 (始终等效开启)。
+const MAIN_WINDOW_BACKGROUND_THROTTLING = false;
 
 function wallpaperEngineTargetFps(display, requestedFps) {
   const displayFrequency = Math.max(24, Math.min(
@@ -274,7 +299,7 @@ function cacheSettingsConfigPath() {
 function defaultCacheRootPath() {
   const dDrive = 'D:\\';
   return fs.existsSync(dDrive)
-    ? path.join(dDrive, 'MineradioCache')
+    ? path.join(dDrive, 'AuroradioCache')
     : path.join(app.getPath('userData'), 'cache');
 }
 
@@ -305,7 +330,7 @@ function chromiumSessionDataPath(settings) {
   const chromiumRoot = settings && settings.chromiumPath
     ? settings.chromiumPath
     : normalizeCacheSettings(null).chromiumPath;
-  return path.join(chromiumRoot, APP_NAME);
+  return path.join(chromiumRoot, APP_DATA_DIR_NAME);
 }
 
 function readCacheSettings() {
@@ -1614,7 +1639,7 @@ function configureLocalAppPermissions() {
           || current.dwmGlassSurfaceActive !== true
           || !sourceMatch
           || Number(sourceMatch[1]) !== Number(current.dwmGlassSurfaceWindowId)
-          || String(source && source.name || '') !== 'Mineradio WE DWM Surface') {
+          || String(source && source.name || '') !== 'Auroradio WE DWM Surface') {
           reply({});
           return;
         }
@@ -1678,15 +1703,15 @@ function sendGlobalHotkeyAction(action) {
   mainWindow.webContents.send('mineradio-global-hotkey', { action });
 }
 
-function unregisterMineradioGlobalHotkeys() {
+function unregisterAuroradioGlobalHotkeys() {
   for (const accelerator of registeredGlobalHotkeys.keys()) {
     try { globalShortcut.unregister(accelerator); } catch (e) {}
   }
   registeredGlobalHotkeys.clear();
 }
 
-function configureMineradioGlobalHotkeys(bindings = []) {
-  unregisterMineradioGlobalHotkeys();
+function configureAuroradioGlobalHotkeys(bindings = []) {
+  unregisterAuroradioGlobalHotkeys();
   const results = [];
   const seen = new Set();
   for (const item of Array.isArray(bindings) ? bindings : []) {
@@ -1993,6 +2018,21 @@ function isZoomShortcutInput(input) {
     || code === 'NumpadSubtract' || code === 'Digit0' || code === 'Numpad0';
 }
 
+// 透明窗口 (transparent:true) 在最小化恢复/隐藏重显后, Chromium 合成器可能不重新提交帧,
+// 表现为整窗全透明 (内容都在但一帧没画)。invalidate + 1px 尺寸抖动强制 DWM 重新合成。
+const forceMainWindowRepaint = (win, reason) => {
+  if (!win || win.isDestroyed()) return;
+  try {
+    win.webContents.invalidate();
+    const bounds = win.getBounds();
+    win.setBounds({ ...bounds, width: bounds.width + 1 });
+    win.setBounds(bounds);
+    console.log('[MainWindow] forced repaint:', reason);
+  } catch (e) {
+    console.warn('[MainWindow] forced repaint failed:', e.message);
+  }
+};
+
 function focusMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   mainWindow.__mineradioIntentionalHide = false;
@@ -2005,6 +2045,7 @@ function focusMainWindow() {
   }
   if (mainWindow.isMinimized()) mainWindow.restore();
   if (!mainWindow.isVisible()) mainWindow.show();
+  forceMainWindowRepaint(mainWindow, 'focus-main-window');
   resetMainWindowZoom();
   mainWindow.focus();
   sendWindowState(mainWindow);
@@ -2188,8 +2229,8 @@ function reportWindowCreationFailure(context, error) {
     startupErrorReported = true;
     try {
       // Keep this literal visible for startup dialog regression checks:
-      // dialog.showErrorBox('Mineradio 启动失败'
-      dialog.showErrorBox(`Mineradio 启动失败 (${code})`, buildStartupErrorMessage(context, code, logInfo, error));
+      // dialog.showErrorBox('Auroradio 启动失败'
+      dialog.showErrorBox(`Auroradio 启动失败 (${code})`, buildStartupErrorMessage(context, code, logInfo, error));
     } catch (_) {}
   }
   if (!startupCompleted) {
@@ -2887,7 +2928,7 @@ async function clearNeteaseMusicLoginSession() {
 }
 
 async function clearQishuiMusicLoginSession() {
-  const qishuiQrLogin = require('../qishui-qr-login');
+  const qishuiQrLogin = require('../services/qishui-qr-login');
   await qishuiQrLogin.clear();
   for (const filePath of [process.env.QISHUI_COOKIE_FILE, process.env.QISHUI_TOKEN_FILE]) {
     if (!filePath) continue;
@@ -2981,7 +3022,7 @@ function startSpotifyOAuthCallbackServer(redirectUri, onCallback) {
         const result = await onCallback(current);
         const ok = !!(result && result.ok);
         res.writeHead(ok ? 200 : 500, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(spotifyOAuthResultHtml(ok, (result && (result.message || result.error)) || (ok ? '可以回到 Mineradio。' : '请回到 Mineradio 重新尝试。')));
+        res.end(spotifyOAuthResultHtml(ok, (result && (result.message || result.error)) || (ok ? '可以回到 Auroradio。' : '请回到 Auroradio 重新尝试。')));
       } catch (e) {
         res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(spotifyOAuthResultHtml(false, e && e.message || 'SPOTIFY_OAUTH_CALLBACK_FAILED'));
@@ -3490,13 +3531,13 @@ $ErrorActionPreference = "SilentlyContinue"
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
-public class MineradioMousePoll {
+public class AuroradioMousePoll {
   [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
 }
 "@
 $prev = $false
 while ($true) {
-  $down = (([MineradioMousePoll]::GetAsyncKeyState(4) -band 0x8000) -ne 0)
+  $down = (([AuroradioMousePoll]::GetAsyncKeyState(4) -band 0x8000) -ne 0)
   if ($down -and -not $prev) {
     [Console]::Out.WriteLine("MMB")
     [Console]::Out.Flush()
@@ -3602,7 +3643,7 @@ function createDesktopLyricsWindow(payload = {}) {
     focusable: false,
     skipTaskbar: true,
     show: false,
-    title: 'Mineradio Desktop Lyrics',
+    title: 'Auroradio Desktop Lyrics',
     webPreferences: {
       preload: path.join(__dirname, 'overlay-preload.js'),
       contextIsolation: true,
@@ -3663,12 +3704,12 @@ function hookExplorerRestartForFullDesktop(win) {
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
-public static class MineradioShellMessage {
+public static class AuroradioShellMessage {
   [DllImport("user32.dll", CharSet=CharSet.Unicode)]
   public static extern uint RegisterWindowMessage(string messageName);
 }
 "@
-[MineradioShellMessage]::RegisterWindowMessage("TaskbarCreated")
+[AuroradioShellMessage]::RegisterWindowMessage("TaskbarCreated")
 `;
   execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script], {
     windowsHide: true,
@@ -3905,7 +3946,7 @@ ipcMain.handle('mineradio-memory-purge-system', async (_event, payload = {}) => 
     if (isMainWindowForegroundVisible()) {
       return {
         ok: true,
-        result: { ok: false, skipped: true, reason: 'foreground-visible', message: 'System memory purge is skipped while Mineradio is visible.' },
+        result: { ok: false, skipped: true, reason: 'foreground-visible', message: 'System memory purge is skipped while Auroradio is visible.' },
         snapshot: systemMemory.getMemorySnapshot(),
         elevated: false,
         systemPurgeAvailable: systemMemory.SYSTEM_PURGE_AVAILABLE === true,
@@ -3944,7 +3985,7 @@ ipcMain.handle('mineradio-cache-get-settings', async () => {
 
 ipcMain.handle('mineradio-cache-choose-directory', async () => {
   const result = await dialog.showOpenDialog({
-    title: '选择 Mineradio 缓存目录',
+    title: '选择 Auroradio 缓存目录',
     defaultPath: cacheSettings.rootPath,
     properties: ['openDirectory', 'createDirectory'],
   });
@@ -4482,7 +4523,7 @@ ipcMain.handle('desktop-window-set-close-behavior', (_event, behavior) => {
 });
 
 ipcMain.handle('mineradio-hotkeys-configure-global', (_event, bindings) => {
-  return configureMineradioGlobalHotkeys(bindings);
+  return configureAuroradioGlobalHotkeys(bindings);
 });
 
 function loginCookieExportMeta(provider) {
@@ -4521,7 +4562,7 @@ ipcMain.handle('mineradio-export-json-file', async (event, payload = {}) => {
     const owner = getSenderWindow(event);
     const defaultName = String(payload.defaultName || 'mineradio-export.json').replace(/[\\/:*?"<>|]+/g, '-');
     const result = await dialog.showSaveDialog(owner, {
-      title: '导出 Mineradio 存档',
+      title: '导出 Auroradio 存档',
       defaultPath: defaultName.toLowerCase().endsWith('.json') ? defaultName : `${defaultName}.json`,
       filters: [{ name: 'JSON', extensions: ['json'] }],
     });
@@ -4538,9 +4579,26 @@ ipcMain.handle('mineradio-import-json-file', async (event) => {
   try {
     const owner = getSenderWindow(event);
     const result = await dialog.showOpenDialog(owner, {
-      title: '导入 Mineradio 存档',
+      title: '导入 Auroradio 存档',
       properties: ['openFile'],
       filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePaths || !result.filePaths[0]) return { ok: false, canceled: true };
+    const filePath = result.filePaths[0];
+    const text = fs.readFileSync(filePath, 'utf8');
+    return { ok: true, filePath, text };
+  } catch (e) {
+    return { ok: false, error: e.message || 'IMPORT_FAILED' };
+  }
+});
+
+ipcMain.handle('mineradio-import-js-file', async (event) => {
+  try {
+    const owner = getSenderWindow(event);
+    const result = await dialog.showOpenDialog(owner, {
+      title: '导入落雪自定义音源脚本',
+      properties: ['openFile'],
+      filters: [{ name: 'JavaScript', extensions: ['js'] }],
     });
     if (result.canceled || !result.filePaths || !result.filePaths[0]) return { ok: false, canceled: true };
     const filePath = result.filePaths[0];
@@ -4616,20 +4674,6 @@ ipcMain.handle('spotify-music-open-login', async (event) => {
 
 ipcMain.handle('spotify-music-clear-login', async () => {
   return clearSpotifyMusicLoginSession();
-});
-
-ipcMain.handle('mineradio-open-update-page', async (event, value) => {
-  try {
-    if (!isTrustedMainWindowIpc(event)) return { ok: false, error: 'UNTRUSTED_SENDER' };
-    const target = String(value || '').trim();
-    if (!target || target.length > 2048) return { ok: false, error: 'INVALID_UPDATE_URL' };
-    const parsed = new URL(target);
-    if (parsed.protocol !== 'https:') return { ok: false, error: 'INVALID_UPDATE_URL' };
-    await shell.openExternal(parsed.href);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e.message || 'OPEN_UPDATE_PAGE_FAILED' };
-  }
 });
 
 ipcMain.handle('mineradio-restart-app', async () => {
@@ -4762,11 +4806,11 @@ ipcMain.handle('mineradio-wallpaper-get-status', async (event) => {
   };
 });
 
-function configureLocalServerEnvironment(port) {
-  process.env.HOST = '127.0.0.1';
-  process.env.PORT = String(port);
-  process.env.MINERADIO_BEAT_CACHE_DIR = cacheSettings.beatmapsPath;
-  process.env.CUEFIELD_FEEDBACK_FILE = path.join(STABLE_USER_DATA_PATH, 'cuefield-feedback.jsonl');
+// 凭据文件路径只依赖 userData，不依赖端口：必须在模块加载时就位。
+// 登录 gate 的后台初始化（whenReady 即开跑）会清理这些凭据文件，
+// 若此时 env 未设置，qishui-qr-login 会回退到 app 目录内的 DEFAULT_CONFIG_FILE，
+// 打包(asar)后那是指向 app.asar 的只读路径，会触发 mkdir EEXIST。
+function configureProviderCredentialEnvPaths() {
   process.env.COOKIE_FILE = path.join(STABLE_USER_DATA_PATH, '.cookie');
   process.env.QQ_COOKIE_FILE = path.join(STABLE_USER_DATA_PATH, '.qq-cookie');
   process.env.KUGOU_COOKIE_FILE = path.join(STABLE_USER_DATA_PATH, '.kugou-cookie');
@@ -4783,6 +4827,14 @@ function configureLocalServerEnvironment(port) {
   if (!process.env.SPOTIFY_CONFIG_FILE && !process.env.MINERADIO_SPOTIFY_CONFIG_FILE) {
     process.env.SPOTIFY_CONFIG_FILE = path.join(STABLE_USER_DATA_PATH, '.spotify-credentials.json');
   }
+}
+
+function configureLocalServerEnvironment(port) {
+  process.env.HOST = '127.0.0.1';
+  process.env.PORT = String(port);
+  process.env.MINERADIO_BEAT_CACHE_DIR = cacheSettings.beatmapsPath;
+  process.env.CUEFIELD_FEEDBACK_FILE = path.join(STABLE_USER_DATA_PATH, 'cuefield-feedback.jsonl');
+  configureProviderCredentialEnvPaths();
 }
 
 const APP_OWNED_MIGRATION_FILES = [
@@ -4988,16 +5040,45 @@ async function ensureLocalServerStarted() {
     const injectedDelay = Math.max(0, Math.min(15000, Number(process.env.MINERADIO_STARTUP_TEST_SERVER_DELAY_MS) || 0));
     if (injectedDelay) await startupDelay(injectedDelay);
     const port = await withStartupTimeout(findOpenPort(3000), 5000, 'findOpenPort');
+    writeStartupState('server-port-found', { port });
     mainServerPort = port;
     configureLocalAppPermissions();
+    writeStartupState('server-perms-configured', {});
     configureLocalServerEnvironment(port);
     migrateLegacyAuthStorage();
-    await initializeLoginEasterEggGate();
+    writeStartupState('server-auth-migrated', {});
+    // 锁定期间强制无凭据：先同步删凭据文件（毫秒级），确保下一步 require(server)
+    // 读不到旧登录态；完整的 gate 初始化（含数秒的五平台 Chromium 分区清理）在
+    // whenReady 时已提前开跑、后台并行，不再串行阻塞启动链。
+    try {
+      loginEasterEggGate.clearCredentialFiles();
+    } catch (e) {
+      console.warn('[LoginEasterEgg] fast credential file clear failed:', e && e.message || e);
+    }
+    if (!loginGateInitializePromise) {
+      loginGateInitializePromise = initializeLoginEasterEggGate().catch((error) => {
+        loginGateInitializePromise = null;
+        console.error('[LoginEasterEgg] gate init failed:', error && error.message || error);
+        return null;
+      });
+    }
+    writeStartupState('server-env-ready', {});
 
     const serverModulePath = path.join(__dirname, '..', 'server.js');
     try { delete require.cache[require.resolve(serverModulePath)]; } catch (_) {}
     localServer = require(serverModulePath);
+    writeStartupState('server-required', {});
+    // lx 自定义音源宿主: 初始化并注入 server (server 可能被重新 require, 每次注入)
+    try {
+      lxSourceHost.initLxSourceHost({ dataDir: STABLE_USER_DATA_PATH });
+      if (localServer && typeof localServer.setLxSourceHost === 'function') {
+        localServer.setLxSourceHost(lxSourceHost);
+      }
+    } catch (err) {
+      console.warn('[LxSource] host init failed:', err && err.message);
+    }
     await waitForServer(localServer, STARTUP_SERVER_TIMEOUT_MS);
+    writeStartupState('server-listening', {});
     await waitForLocalHttpReady(port, STARTUP_HTTP_TIMEOUT_MS);
     writeStartupState('server-ready', { serverReadyAt: Date.now(), port });
     return localServer;
@@ -5016,7 +5097,7 @@ async function ensureLocalServerStarted() {
 
 function showMainWindowSafely(win, reason) {
   if (!win || win.isDestroyed()) return false;
-  // A renderer may be reloaded while the user intentionally keeps Mineradio
+  // A renderer may be reloaded while the user intentionally keeps Auroradio
   // in the tray. Runtime recovery must never turn that reload into a surprise
   // foreground window.
   if (startupCompleted && win.__mineradioIntentionalHide === true) return false;
@@ -5139,7 +5220,7 @@ function recoverMainWindowAfterRendererGone(win, details = {}, cleanupPromise = 
   if (!attempt) {
     const error = new Error('renderer recovery limit reached');
     const log = writeStartupErrorLog('Runtime renderer recovery', 'MR-RUNTIME-RENDERER-LOOP', error);
-    dialog.showErrorBox('Mineradio 显示恢复失败', `前台界面连续异常退出，已停止自动重载。\n日志：${log.file}`);
+    dialog.showErrorBox('Auroradio 显示恢复失败', `前台界面连续异常退出，已停止自动重载。\n日志：${log.file}`);
     return Promise.resolve(false);
   }
   const keepFullscreen = win.isFullScreen() || windowFullscreenActive;
@@ -5175,7 +5256,7 @@ function recoverMainWindowAfterRendererGone(win, details = {}, cleanupPromise = 
         try { win.show(); } catch (_) { }
       }
       if (attempt >= RENDERER_RECOVERY_MAX_ATTEMPTS) {
-        dialog.showErrorBox('Mineradio 显示恢复失败', `前台界面无法重新加载。\n日志：${log.file}`);
+        dialog.showErrorBox('Auroradio 显示恢复失败', `前台界面无法重新加载。\n日志：${log.file}`);
       }
     }
     return false;
@@ -5254,6 +5335,8 @@ async function createWindowOnce() {
     pid: process.pid,
     runtimeName: APP_NAME,
     startedAt: Date.now(),
+    // 跨窗口重建保留：进程创建 → 本模块求值的耗时只在模块顶层测得到一次。
+    processBootElapsedMs: startupState && startupState.processBootElapsedMs,
     phase: 'window-create-start',
     events: [],
   };
@@ -5270,7 +5353,10 @@ async function createWindowOnce() {
     resizable: true,
     transparent: true,
     opacity: process.env.MINERADIO_STARTUP_QA_HIDDEN === '1' ? 0 : 1,
-    backgroundColor: '#00000000',
+    // 白屏修复关键：基底用不透明深色而非透明。隐藏窗口没有任何合成器帧，
+    // "等首帧再显示"在隐藏期无法实现；深色基底保证 show() 后、页面绘制前
+    // 的窗口表面是深色而非白色。页面就绪后由 rAF 探针恢复透明基底。
+    backgroundColor: '#040507',
     hasShadow: true,
     autoHideMenuBar: true,
     title: APP_NAME,
@@ -5287,9 +5373,11 @@ async function createWindowOnce() {
   hookExplorerRestartForFullDesktop(win);
   writeStartupState('window-created', { windowCreatedAt: Date.now() });
 
+  // 显示时机兜底（沿用 watchdog 槽位）：入口动画迟迟没跑起来（冷启动极端
+  // 情况）时最多等 6s 就先显示深色基底窗口——基底不透明深色，绝不露白。
   win.__mineradioStartupShowTimer = setTimeout(() => {
-    showMainWindowSafely(win, 'watchdog');
-  }, STARTUP_SHOW_WATCHDOG_MS);
+    showMainWindowSafely(win, 'animation-cap');
+  }, STARTUP_ANIMATION_SHOW_CAP_MS);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -5311,12 +5399,51 @@ async function createWindowOnce() {
     closeWallpaperWindow('webcontents-destroyed').catch(() => {});
   });
 
-  win.webContents.on('did-finish-load', () => {
-    showMainWindowSafely(win, 'did-finish-load');
-  });
+  // 显示时序（splash 回归版）：splash 的 dom-ready 一到即显示——窗口基底是
+  // 不透明深色（构造参数），任何时刻 show() 都不会露白，无需再等首帧。
+  // splash 背景色 rgba(4,5,7,.96) 与基底 #040507 几乎一致，splash → index
+  // 初始化期的衔接视觉上无缝；入口页就绪信号（entry-visual-ready IPC）到
+  // 达时窗口已可见，为无操作。rAF 探针在动画跑起来后恢复透明基底。
+  win.webContents.on('dom-ready', () => showMainWindowSafely(win, 'dom-ready'));
   win.webContents.on('dom-ready', () => {
-    showMainWindowSafely(win, 'dom-ready');
+    win.webContents.executeJavaScript(
+      'new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(1))))',
+      true
+    ).then(() => {
+      if (win.isDestroyed()) return;
+      if (!win.__mineradioBaseRestored) {
+        win.__mineradioBaseRestored = true;
+        try { win.setBackgroundColor('#00000000'); } catch (_) {}
+      }
+      if (!win.isVisible()) showMainWindowSafely(win, 'animation-ready');
+    }).catch(() => {});
   });
+  // 启动白屏诊断：MINERADIO_STARTUP_FRAME_DUMP=<dir> 时把窗口内容逐帧落盘
+  // （原始 BGRA，文件名带 w/h/scale），供外部脚本做像素亮度统计。
+  const frameDumpDir = String(process.env.MINERADIO_STARTUP_FRAME_DUMP || '').trim();
+  if (frameDumpDir && path.isAbsolute(frameDumpDir)) {
+    try {
+      fs.mkdirSync(frameDumpDir, { recursive: true });
+      const dumpBase = Date.now() - Math.round(performance.now());
+      let dumpIndex = 0;
+      const dumpTimer = setInterval(() => {
+        if (win.isDestroyed()) { clearInterval(dumpTimer); return; }
+        try {
+          const image = win.webContents.capturePage();
+          image.then((nativeImage) => {
+            if (nativeImage.isEmpty()) return;
+            const size = nativeImage.getSize();
+            const bitmap = nativeImage.toBitmap();
+            const file = path.join(frameDumpDir, `frame-${String(dumpIndex++).padStart(4, '0')}-${Date.now() - dumpBase}ms-${size.width}x${size.height}x${nativeImage.getScaleFactors()[0] || 1}.bin`);
+            fs.writeFileSync(file, bitmap);
+          }).catch(() => {});
+        } catch (_) {}
+      }, 40);
+      setTimeout(() => clearInterval(dumpTimer), 8000);
+    } catch (e) {
+      console.warn('[StartupFrameDump] unavailable:', e && e.message || e);
+    }
+  }
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
     console.warn('[StartupWindow] did-fail-load:', errorCode, errorDescription, validatedURL || '');
@@ -5359,7 +5486,6 @@ async function createWindowOnce() {
     }
   });
 
-  win.once('ready-to-show', () => showMainWindowSafely(win, 'ready-to-show'));
   win.on('maximize', () => sendWindowState(win));
   win.on('unmaximize', () => sendWindowState(win));
   win.on('minimize', () => {
@@ -5370,13 +5496,20 @@ async function createWindowOnce() {
   win.on('restore', () => {
     win.__mineradioIntentionalHide = false;
     sendWindowState(win);
-    if (fullDesktopModeHostVisibilityTransitionDepth <= 0) resumeWallpaperEngineForVisibleHost(win, 'restore');
+    if (fullDesktopModeHostVisibilityTransitionDepth <= 0) {
+      resumeWallpaperEngineForVisibleHost(win, 'restore');
+      forceMainWindowRepaint(win, 'restore');
+    }
   });
   win.on('show', () => {
     win.__mineradioIntentionalHide = false;
     if (fullDesktopModeHostVisibilityTransitionDepth > 0) return;
     sendWindowState(win);
     resumeWallpaperEngineForVisibleHost(win, 'show');
+    // 白屏修复：show 路径绝不能做 setBounds ±1px 抖动（forceMainWindowRepaint）——
+    // 透明窗口 resize 会强制 DWM 重建合成表面，实测窗口表面白屏约 1s。
+    // 首帧探针已保证 show 时有真实渲染帧，这里只需软性请求重绘。
+    try { win.webContents.invalidate(); } catch (_) {}
   });
   win.on('hide', () => {
     if (fullDesktopModeHostVisibilityTransitionDepth > 0) return;
@@ -5510,6 +5643,8 @@ async function createWindowOnce() {
     }, 50);
   });
 
+  // 启动 splash：窗口基底深色不透明，dom-ready 即显示也不会露白；index 就绪
+  // 前它一直可见（导航空档由 paint holding / 深色基底衔接，背景色几乎一致）。
   const startupShell = path.join(__dirname, 'startup.html');
   if (fs.existsSync(startupShell)) {
     win.loadFile(startupShell).catch((error) => {
@@ -5523,7 +5658,8 @@ async function createWindowOnce() {
   await loadMainWindowWithRetry(win);
   if (win.isDestroyed()) throw new Error('Main BrowserWindow was destroyed after navigation');
   startupCompleted = true;
-  showMainWindowSafely(win, 'navigation-complete');
+  // 此处不显示窗口：加载完成 ≠ 动画开始。显示由 dom-ready 的 rAF 探针
+  // （animation-ready）或 6s 兜底（animation-cap）负责。
   writeStartupState('ready', { readyAt: Date.now(), port: mainServerPort || Number(process.env.PORT) || 3000 });
   const qaExitMs = Math.max(0, Math.min(10000, Number(process.env.MINERADIO_STARTUP_QA_EXIT_MS) || 0));
   if (qaExitMs) {
@@ -5534,6 +5670,15 @@ async function createWindowOnce() {
   }
   return win;
 }
+
+// 入口页初始化完成信号（index-loader 在模块主循环就绪后发出）：此刻显示窗口，
+// 入场动画随 rAF 恢复立即开始——用户看到"点击 → 安静 1~2 秒 → 动画直接出现"。
+// 基底恢复为透明仍由 dom-ready 的 rAF 探针负责（动画跑起来之后）。
+ipcMain.on('mineradio-entry-visual-ready', () => {
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+  if (!win || win.isVisible()) return;
+  showMainWindowSafely(win, 'entry-visual-ready');
+});
 
 function createWindow() {
   if (mainWindowCreatePromise) return mainWindowCreatePromise;
@@ -5566,6 +5711,13 @@ if (!gotSingleInstanceLock) {
   });
 
   app.whenReady().then(async () => {
+    // 提前开跑登录 gate 初始化（unlocked=false 时会清理五平台 session 分区，
+    // 实测耗时数秒）：与开窗/服务端启动并行，失败仅记录，不阻断启动。
+    loginGateInitializePromise = initializeLoginEasterEggGate().catch((error) => {
+      loginGateInitializePromise = null;
+      console.error('[LoginEasterEgg] background gate init failed:', error && error.message || error);
+      return null;
+    });
     try {
       await localMusicLibrary.installProtocol(protocol);
     } catch (error) {
@@ -5616,7 +5768,7 @@ if (!gotSingleInstanceLock) {
     wallpaperEngineLibrary.dispose();
     stopMemoryAutoTimer();
     unregisterFullDesktopEscapeShortcut();
-    unregisterMineradioGlobalHotkeys();
+    unregisterAuroradioGlobalHotkeys();
     closeDesktopLyricsWindow();
     if (localServer && localServer.close) localServer.close();
     if (tray) {

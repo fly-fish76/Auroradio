@@ -46,7 +46,7 @@ function trimAppWorkingSets(pids) {
     'Add-Type @\'',
     'using System;',
     'using System.Runtime.InteropServices;',
-    'public static class MineradioTrim {',
+    'public static class AuroradioTrim {',
     '  [DllImport("psapi.dll")] public static extern bool EmptyWorkingSet(IntPtr h);',
     '  [DllImport("kernel32.dll")] public static extern IntPtr OpenProcess(int access, bool inherit, int pid);',
     '  [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr h);',
@@ -62,7 +62,7 @@ function trimAppWorkingSets(pids) {
     '}',
     '\'@',
     '$pids = @(' + pidLiteral + ')',
-    '$trimmed = [MineradioTrim]::TrimMany([int[]]$pids)',
+    '$trimmed = [AuroradioTrim]::TrimMany([int[]]$pids)',
     'Write-Output (@{ ok=$true; trimmed=$trimmed; scope="app"; pids=$pids } | ConvertTo-Json -Compress)',
   ].join('\r\n');
   fs.writeFileSync(scriptPath, script, 'utf8');

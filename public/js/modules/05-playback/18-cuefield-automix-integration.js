@@ -228,7 +228,7 @@ function disposeCuefieldPreparedAudioGraph(media) {
 function stopCuefieldPreparedAudio(media) {
   media = media || cuefieldAutoMixPreparedAudio;
   if (!media) return;
-  // Once the preloaded B deck has become Mineradio's active deck it no longer
+  // Once the preloaded B deck has become Auroradio's active deck it no longer
   // belongs to Cuefield. A later C-deck preparation must never pause or unload it.
   if (typeof audio !== 'undefined' && media === audio) {
     claimCuefieldPreparedAudioForPlayback(media);

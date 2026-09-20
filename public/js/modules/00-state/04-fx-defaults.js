@@ -7,12 +7,29 @@ function normalizeWallpaperFps(value) {
 }
 
 var fxDefaults = {
-  preset: 0,            // 0=emily cover, 1=tunnel, 2=orbit, 3=void, 4=vinyl, 5=wallpaper, 6=skull, 7=sonic topography, 8=sonic workshop
+  preset: 0,            // 0=emily cover, 1=tunnel, 2=orbit, 3=void, 4=vinyl, 5=wallpaper, 6=skull, 7=sonic topography, 8=sonic workshop, 9=phoenix
+  presetOverlay: -1,    // 预设叠加层: -1=无, 否则叠加显示该预设的独立视觉层 (5/6/7/9)
+  phoenixFlightPath: 'none', // 凤凰横向轨迹: none=原地 circle=盘旋椭圆 patrol=左右巡游 (旧 phoenixFlightMode 自动迁移)
+  phoenixFlightDive: false,  // 俯冲叠加开关 (可与盘旋/巡游同时开)
+  phoenixFlightShowPath: false, // 显示轨迹虚线开关
+  phoenixFlightSpeed: 1.0,   // 轨迹线速度倍率 0.3~2.5
+  phoenixFlightAmp: 1.0,     // 轨迹幅度倍率 0.3~1.8
+  phoenixFlightSize: 1.0,    // 盘旋椭圆横向半径倍数 1~5
+  phoenixFlightTilt: 0,      // 椭圆长轴在屏幕面内的倾斜角度 0~90 度 (屏面参照)
+  phoenixFlightSpin: 60,     // 椭圆旋出屏幕面的角度 0~90 度: 0=侧立成线 90=平铺屏面
+  phoenixPosX: 0,            // 凤凰整体位置左右偏移 (世界单位, 悬停/盘旋/巡游/俯冲都生效)
+  phoenixPosY: 0,            // 凤凰整体位置上下偏移 (向上为正)
+  lyricAvoidPhoenix: true,   // 凤凰层激活且有歌词时, 歌词自动下移避让
   intensity: 0.85,
+  particleCount: 1.0,   // 粒子数量保留比例 0.1~1.0, 着色器按 aRand 随机裁剪
+  particleDensity: 1.0, // 粒子密度倍增 1.0~4.0, 几何层倍增粒子总数(网格上限 640)
   cinemaShake: 0.5,
   depth: 0.2,
   coverResolution: 1.55,
   point: 1.0, speed: 1.0, twist: 0.0, color: 1.10, scatter: 0.0, bgFade: 0.20,
+  brightness: 1.0,
+  phoenixColorMode: 'default', phoenixSolidColor: '#ff8a3c',
+  phoenixRhythmMode: 'beat',
   bloomStrength: 0.62,
   lyricGlowStrength: 0.28,
   lyricBackgroundAdapt: 0.72,
@@ -22,6 +39,7 @@ var fxDefaults = {
   lyricOffsetZ: 0,
   lyricTiltX: 0,
   lyricTiltY: 0,
+  lyricKeepLevel: true, // 歌词保持水平: 朝向=垂直告示板, 不跟随封面平面/相机滚转旋转
   lyricColorMode: 'auto',
   lyricColor: '#7ec8d8',
   lyricHighlightMode: 'auto',
@@ -81,6 +99,13 @@ var fxDefaults = {
   desktopLyricsCinema: false,
   desktopLyricsHighlight: false,
   desktopLyricsFps: 0,
+  playerShellStyle: 'glass',
+  progressStyle: 'default',
+  progressParticleAmount: 100,
+  progressParticleBrightness: 1,
+  progressParticleSize: 1,
+  progressThickness: 1,
+  progressSparkDirection: 'down',
   wallpaperMode: false,
   wallpaperOpacity: 1,
   wallpaperFps: 60,
@@ -89,6 +114,9 @@ var fxDefaults = {
   lyricGlowParticles: false,
   lyricVerticalFloat: true,
   backgroundStarRiver: true,
+  perPresetSplit: false, // 分预设视觉参数开关 (false=统一调节)
+  zoomFixed: false,      // 固定缩放: 开启后每次启动/切预设/回正都用 zoomRadius 作为相机距离
+  zoomRadius: 10.2,      // 视图缩放 (相机轨道半径, 即鼠标滚轮调整的距离; 默认=全景)
   lyricPauseHold: true,
   lyricCameraLock: false,
   sonicGroundAmplitude: 50,
@@ -204,4 +232,50 @@ function foregroundFixedFpsForMode(mode) {
   if (mode === 'vsync') return 0;
   if (mode === 'adaptive') return null;
   return Math.max(1, Number(mode) || 60);
+}
+
+// ---- 预设叠加层 ----
+// 会独占画面(隐藏基础粒子)的对象型预设; 音域回响(7)按原设计允许与基础粒子共存
+function fxPresetHidesBaseParticles(p) {
+  return p === 6 || p === 8 || p === 9;
+}
+function getFxPresetOverlay() {
+  if (!fx) return -1;
+  var v = Number(fx.presetOverlay);
+  return isFinite(v) ? Math.round(clampRange(v, -1, 9)) : -1;
+}
+// 某预设的独立视觉层是否应显示 (主预设 或 叠加层)
+function fxLayerActiveFor(idx) {
+  return !!fx && (Number(fx.preset) === idx || getFxPresetOverlay() === idx);
+}
+// 主粒子系统当前应呈现的预设 (基础预设独占画面时, 若叠加了粒子型预设则显示叠加层的粒子)
+function fxMainParticlePreset() {
+  var base = Number(fx && fx.preset) || 0;
+  if (!fxPresetHidesBaseParticles(base)) return base;
+  var ov = getFxPresetOverlay();
+  return (ov >= 0 && ov <= 5) ? ov : base;
+}
+// 层参数上下文: 无叠加时主层用全局实时值 (滑杆即时生效); 叠加激活时各层冻结在各自预设的快照上
+// (全局此时是叠加层的参数上下文, 由 setFxPresetOverlay 切换)
+function fxLayerFx(idx) {
+  if (!fx || fx.perPresetSplit !== true) return fx;
+  var ov = (typeof getFxPresetOverlay === 'function') ? getFxPresetOverlay() : -1;
+  if (Number(fx.preset) === idx && ov < 0) return fx;
+  try {
+    if (typeof fxPerPresetStore === 'undefined') return fx;
+    if (typeof fxPerPresetLoad === 'function') fxPerPresetLoad();
+    var snap = fxPerPresetStore ? fxPerPresetStore[idx] : null;
+    if (!snap) return fx;
+    var o = Object.assign({}, fx);
+    for (var k in snap) o[k] = snap[k];
+    o.preset = Number(fx.preset);          // 结构字段保持全局 (层激活判定一致)
+    o.presetOverlay = ov;
+    return o;
+  } catch (e) { return fx; }
+}
+
+// 亮度滑杆重映射: 滑杆 0~5 → 实际 0~3 (感知敏感区放大), 滑杆 5~10 → 实际 3~10 (无感区压缩)
+function fxBrightnessFromSlider(v) {
+  v = clampRange(Number(v) || 0, 0, 10);
+  return v <= 5 ? v * 0.6 : 3 + (v - 5) * 1.4;
 }

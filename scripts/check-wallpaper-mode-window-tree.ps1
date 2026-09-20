@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [string]$Title = 'Mineradio Desktop Wallpaper'
+  [string]$Title = 'Auroradio Desktop Wallpaper'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class MineradioWallpaperModeWindowTree {
+public static class AuroradioWallpaperModeWindowTree {
   [StructLayout(LayoutKind.Sequential)]
   private struct RECT {
     public int Left;
@@ -98,5 +98,5 @@ public static class MineradioWallpaperModeWindowTree {
 }
 '@
 
-$rows = @([MineradioWallpaperModeWindowTree]::Run($Title))
+$rows = @([AuroradioWallpaperModeWindowTree]::Run($Title))
 ConvertTo-Json -InputObject $rows -Depth 5

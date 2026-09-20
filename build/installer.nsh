@@ -27,7 +27,7 @@
 !endif
 !ifndef BUILD_UNINSTALLER
   !ifndef MUI_CUSTOMFUNCTION_GUIINIT
-    !define MUI_CUSTOMFUNCTION_GUIINIT MineradioGuiInit
+    !define MUI_CUSTOMFUNCTION_GUIINIT AuroradioGuiInit
   !endif
 !endif
 
@@ -38,7 +38,7 @@
 !include WinMessages.nsh
 
 !ifndef MINERADIO_INSTALL_DIR_NAME
-  !define MINERADIO_INSTALL_DIR_NAME "Mineradio"
+  !define MINERADIO_INSTALL_DIR_NAME "Auroradio"
 !endif
 !ifndef MINERADIO_INSTALL_DIR_NAME_LOWER
   !define MINERADIO_INSTALL_DIR_NAME_LOWER "mineradio"
@@ -53,28 +53,28 @@
   !define MINERADIO_INSTALL_BRAND "MINERADIO"
 !endif
 !ifndef MINERADIO_INSTALL_TITLE
-  !define MINERADIO_INSTALL_TITLE "Mineradio 安装"
+  !define MINERADIO_INSTALL_TITLE "Auroradio 安装"
 !endif
 !ifndef MINERADIO_INSTALL_NOTICE
   !define MINERADIO_INSTALL_NOTICE ""
 !endif
 
 !ifndef BUILD_UNINSTALLER
-  Var MineradioWelcomePage
-  Var MineradioHeroFont
-  Var MineradioTitleFont
-  Var MineradioBodyFont
-  Var MineradioSmallFont
-  Var MineradioDirectoryPage
-  Var MineradioDirectoryInput
+  Var AuroradioWelcomePage
+  Var AuroradioHeroFont
+  Var AuroradioTitleFont
+  Var AuroradioBodyFont
+  Var AuroradioSmallFont
+  Var AuroradioDirectoryPage
+  Var AuroradioDirectoryInput
 !endif
 
 !macro customInit
   !ifndef BUILD_UNINSTALLER
-    Call MineradioUsePreferredInstallDir
-    Call MineradioDisableUnsafeOldUninstallers
+    Call AuroradioUsePreferredInstallDir
+    Call AuroradioDisableUnsafeOldUninstallers
     ${If} ${Silent}
-      Call MineradioValidateInstallDir
+      Call AuroradioValidateInstallDir
     ${EndIf}
   !endif
 !macroend
@@ -82,18 +82,18 @@
 !macro customInstall
   FileOpen $0 "$INSTDIR\${MINERADIO_INSTALL_MARKER}" w
   ${IfNot} ${Errors}
-    FileWrite $0 "Mineradio install root$\r$\n"
+    FileWrite $0 "Auroradio install root$\r$\n"
     FileWrite $0 "appId=${MINERADIO_MARKER_APP_ID}$\r$\n"
     FileClose $0
   ${EndIf}
 !macroend
 
 !macro customRemoveFiles
-  Call un.MineradioRemoveInstalledFiles
+  Call un.AuroradioRemoveInstalledFiles
 !macroend
 
 !macro customWelcomePage
-  Page custom MineradioWelcomeShow
+  Page custom AuroradioWelcomeShow
 !macroend
 
 !macro customInstallMode
@@ -101,12 +101,12 @@
 !macroend
 
 !macro customPageAfterChangeDir
-  Page custom MineradioDirectoryShow MineradioDirectoryLeave
+  Page custom AuroradioDirectoryShow AuroradioDirectoryLeave
 !macroend
 
 !macro customFinishPage
   !ifndef HIDE_RUN_AFTER_FINISH
-    Function MineradioFinishStartApp
+    Function AuroradioFinishStartApp
       ${If} ${isUpdated}
         StrCpy $1 "--updated"
       ${Else}
@@ -116,20 +116,20 @@
     FunctionEnd
 
     !define MUI_FINISHPAGE_RUN
-    !define MUI_FINISHPAGE_RUN_FUNCTION "MineradioFinishStartApp"
+    !define MUI_FINISHPAGE_RUN_FUNCTION "AuroradioFinishStartApp"
   !endif
-  !define MUI_PAGE_CUSTOMFUNCTION_SHOW MineradioTintCommonControls
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW AuroradioTintCommonControls
   !insertmacro MUI_PAGE_FINISH
 !macroend
 
 !ifndef BUILD_UNINSTALLER
-Function MineradioGuiInit
+Function AuroradioGuiInit
   System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 20, *i 1, i 4) i .r0'
   System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 19, *i 1, i 4) i .r0'
-  Call MineradioTintCommonControls
+  Call AuroradioTintCommonControls
 FunctionEnd
 
-Function MineradioTintCommonControls
+Function AuroradioTintCommonControls
   SetCtlColors $HWNDPARENT "111217" "FFFFFF"
 
   GetDlgItem $0 $HWNDPARENT 1
@@ -237,7 +237,7 @@ Function MineradioTintCommonControls
   ${EndIf}
 FunctionEnd
 
-Function MineradioUsePreferredInstallDir
+Function AuroradioUsePreferredInstallDir
   ${GetParameters} $R0
   ClearErrors
   ${GetOptions} $R0 "/D=" $R1
@@ -245,18 +245,18 @@ Function MineradioUsePreferredInstallDir
   ${AndIf} $R1 != ""
     StrCpy $INSTDIR "$R1"
   ${Else}
-    Call MineradioUseRegisteredInstallDir
+    Call AuroradioUseRegisteredInstallDir
     Pop $R2
     ${If} $R2 != "1"
-      Call MineradioUseFirstAvailableInstallDir
+      Call AuroradioUseFirstAvailableInstallDir
     ${EndIf}
   ${EndIf}
   Push "$INSTDIR"
-  Call MineradioNormalizeInstallDir
+  Call AuroradioNormalizeInstallDir
   Pop $INSTDIR
 FunctionEnd
 
-Function MineradioUseFirstAvailableInstallDir
+Function AuroradioUseFirstAvailableInstallDir
   IfFileExists "D:\*.*" driveD 0
   IfFileExists "E:\*.*" driveE 0
   IfFileExists "F:\*.*" driveF 0
@@ -354,7 +354,7 @@ Function MineradioUseFirstAvailableInstallDir
     Return
 FunctionEnd
 
-Function MineradioHasPreferredInstallDrive
+Function AuroradioHasPreferredInstallDrive
   IfFileExists "D:\*.*" hasPreferred 0
   IfFileExists "E:\*.*" hasPreferred 0
   IfFileExists "F:\*.*" hasPreferred 0
@@ -386,10 +386,10 @@ Function MineradioHasPreferredInstallDrive
     Return
 FunctionEnd
 
-Function MineradioNormalizeInstallDir
+Function AuroradioNormalizeInstallDir
   Exch $0
   Push "$0"
-  Call MineradioTrimInstallDir
+  Call AuroradioTrimInstallDir
   Pop $0
   StrLen $4 "${MINERADIO_INSTALL_DIR_NAME}"
   StrLen $1 "$0"
@@ -418,7 +418,7 @@ Function MineradioNormalizeInstallDir
   Exch $0
 FunctionEnd
 
-Function MineradioTrimInstallDir
+Function AuroradioTrimInstallDir
   Exch $0
 
   trim:
@@ -434,7 +434,7 @@ Function MineradioTrimInstallDir
   Exch $0
 FunctionEnd
 
-Function MineradioInstallDirLooksOwned
+Function AuroradioInstallDirLooksOwned
   Exch $0
   StrCpy $1 "0"
 
@@ -445,7 +445,7 @@ Function MineradioInstallDirLooksOwned
   Exch $0
 FunctionEnd
 
-Function MineradioExistingInstallPathCanBeAdopted
+Function AuroradioExistingInstallPathCanBeAdopted
   Exch $0
   StrCpy $1 "0"
 
@@ -454,14 +454,14 @@ Function MineradioExistingInstallPathCanBeAdopted
   ${EndIf}
 
   Push "$0"
-  Call MineradioTrimInstallDir
+  Call AuroradioTrimInstallDir
   Pop $2
   ${If} $2 == ""
     Goto done
   ${EndIf}
 
   Push "$2"
-  Call MineradioNormalizeInstallDir
+  Call AuroradioNormalizeInstallDir
   Pop $3
   ${If} $2 != $3
     Goto done
@@ -483,14 +483,14 @@ Function MineradioExistingInstallPathCanBeAdopted
     Exch $0
 FunctionEnd
 
-Function MineradioUseRegisteredInstallDir
+Function AuroradioUseRegisteredInstallDir
   ReadRegStr $0 HKCU "Software\${APP_GUID}" InstallLocation
   Push "$0"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $1
   ${If} $1 == "1"
     Push "$0"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $INSTDIR
     Push "1"
     Return
@@ -498,11 +498,11 @@ Function MineradioUseRegisteredInstallDir
 
   ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}" InstallLocation
   Push "$0"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $1
   ${If} $1 == "1"
     Push "$0"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $INSTDIR
     Push "1"
     Return
@@ -510,11 +510,11 @@ Function MineradioUseRegisteredInstallDir
 
   ReadRegStr $0 HKLM "Software\${APP_GUID}" InstallLocation
   Push "$0"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $1
   ${If} $1 == "1"
     Push "$0"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $INSTDIR
     Push "1"
     Return
@@ -522,11 +522,11 @@ Function MineradioUseRegisteredInstallDir
 
   ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}" InstallLocation
   Push "$0"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $1
   ${If} $1 == "1"
     Push "$0"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $INSTDIR
     Push "1"
     Return
@@ -535,7 +535,7 @@ Function MineradioUseRegisteredInstallDir
   Push "0"
 FunctionEnd
 
-Function MineradioRegisteredInstallDirCanBeAdopted
+Function AuroradioRegisteredInstallDirCanBeAdopted
   Exch $0
   StrCpy $1 "0"
 
@@ -544,16 +544,16 @@ Function MineradioRegisteredInstallDirCanBeAdopted
   ${EndIf}
 
   Push "$0"
-  Call MineradioNormalizeInstallDir
+  Call AuroradioNormalizeInstallDir
   Pop $2
 
   ReadRegStr $3 HKCU "Software\${APP_GUID}" InstallLocation
   Push "$3"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $4
   ${If} $4 == "1"
     Push "$3"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $5
     ${If} $5 == $2
       StrCpy $1 "1"
@@ -563,11 +563,11 @@ Function MineradioRegisteredInstallDirCanBeAdopted
 
   ReadRegStr $3 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}" InstallLocation
   Push "$3"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $4
   ${If} $4 == "1"
     Push "$3"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $5
     ${If} $5 == $2
       StrCpy $1 "1"
@@ -577,11 +577,11 @@ Function MineradioRegisteredInstallDirCanBeAdopted
 
   ReadRegStr $3 HKLM "Software\${APP_GUID}" InstallLocation
   Push "$3"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $4
   ${If} $4 == "1"
     Push "$3"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $5
     ${If} $5 == $2
       StrCpy $1 "1"
@@ -591,11 +591,11 @@ Function MineradioRegisteredInstallDirCanBeAdopted
 
   ReadRegStr $3 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}" InstallLocation
   Push "$3"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $4
   ${If} $4 == "1"
     Push "$3"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $5
     ${If} $5 == $2
       StrCpy $1 "1"
@@ -608,7 +608,7 @@ Function MineradioRegisteredInstallDirCanBeAdopted
     Exch $0
 FunctionEnd
 
-Function MineradioInstallDirIsEmpty
+Function AuroradioInstallDirIsEmpty
   Exch $0
   FindFirst $1 $2 "$0\*.*"
   StrCpy $3 "1"
@@ -630,7 +630,7 @@ Function MineradioInstallDirIsEmpty
     Exch $0
 FunctionEnd
 
-Function MineradioOldInstallPathNeedsQuarantine
+Function AuroradioOldInstallPathNeedsQuarantine
   Exch $0
   StrCpy $1 "0"
 
@@ -639,10 +639,10 @@ Function MineradioOldInstallPathNeedsQuarantine
   ${EndIf}
 
   Push "$0"
-  Call MineradioTrimInstallDir
+  Call AuroradioTrimInstallDir
   Pop $2
   Push "$2"
-  Call MineradioNormalizeInstallDir
+  Call AuroradioNormalizeInstallDir
   Pop $3
 
   ${If} $2 != $3
@@ -652,7 +652,7 @@ Function MineradioOldInstallPathNeedsQuarantine
 
   IfFileExists "$2\${MINERADIO_INSTALL_MARKER}" done 0
   Push "$2"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $4
   ${If} $4 == "1"
     Goto done
@@ -665,28 +665,28 @@ Function MineradioOldInstallPathNeedsQuarantine
     Exch $0
 FunctionEnd
 
-Function MineradioDisableUnsafeOldUninstallers
+Function AuroradioDisableUnsafeOldUninstallers
   StrCpy $2 "0"
 
   ReadRegStr $0 HKCU "Software\${APP_GUID}" InstallLocation
   Push "$0"
-  Call MineradioDeleteLegacyUninstallerFileIfMissingMarker
+  Call AuroradioDeleteLegacyUninstallerFileIfMissingMarker
   Push "$0"
-  Call MineradioOldInstallPathNeedsQuarantine
+  Call AuroradioOldInstallPathNeedsQuarantine
   Pop $1
   ${If} $1 == "1"
-    DetailPrint "Skip unsafe legacy Mineradio uninstaller: $0"
+    DetailPrint "Skip unsafe legacy Auroradio uninstaller: $0"
     StrCpy $2 "1"
   ${EndIf}
 
   ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}" InstallLocation
   Push "$0"
-  Call MineradioDeleteLegacyUninstallerFileIfMissingMarker
+  Call AuroradioDeleteLegacyUninstallerFileIfMissingMarker
   Push "$0"
-  Call MineradioOldInstallPathNeedsQuarantine
+  Call AuroradioOldInstallPathNeedsQuarantine
   Pop $1
   ${If} $1 == "1"
-    DetailPrint "Skip unsafe legacy Mineradio uninstaller: $0"
+    DetailPrint "Skip unsafe legacy Auroradio uninstaller: $0"
     StrCpy $2 "1"
   ${EndIf}
 
@@ -699,23 +699,23 @@ Function MineradioDisableUnsafeOldUninstallers
 
   ReadRegStr $0 HKLM "Software\${APP_GUID}" InstallLocation
   Push "$0"
-  Call MineradioDeleteLegacyUninstallerFileIfMissingMarker
+  Call AuroradioDeleteLegacyUninstallerFileIfMissingMarker
   Push "$0"
-  Call MineradioOldInstallPathNeedsQuarantine
+  Call AuroradioOldInstallPathNeedsQuarantine
   Pop $1
   ${If} $1 == "1"
-    DetailPrint "Skip unsafe legacy Mineradio uninstaller: $0"
+    DetailPrint "Skip unsafe legacy Auroradio uninstaller: $0"
     StrCpy $2 "1"
   ${EndIf}
 
   ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}" InstallLocation
   Push "$0"
-  Call MineradioDeleteLegacyUninstallerFileIfMissingMarker
+  Call AuroradioDeleteLegacyUninstallerFileIfMissingMarker
   Push "$0"
-  Call MineradioOldInstallPathNeedsQuarantine
+  Call AuroradioOldInstallPathNeedsQuarantine
   Pop $1
   ${If} $1 == "1"
-    DetailPrint "Skip unsafe legacy Mineradio uninstaller: $0"
+    DetailPrint "Skip unsafe legacy Auroradio uninstaller: $0"
     StrCpy $2 "1"
   ${EndIf}
 
@@ -725,15 +725,15 @@ Function MineradioDisableUnsafeOldUninstallers
   ${EndIf}
 FunctionEnd
 
-Function MineradioDeleteLegacyUninstallerFileIfMissingMarker
+Function AuroradioDeleteLegacyUninstallerFileIfMissingMarker
   Pop $0
   ${If} $0 != ""
     Push "$0"
-    Call MineradioTrimInstallDir
+    Call AuroradioTrimInstallDir
     Pop $1
     ${If} $1 != ""
       IfFileExists "$1\${MINERADIO_INSTALL_MARKER}" done 0
-      DetailPrint "Remove legacy Mineradio uninstaller file: $1"
+      DetailPrint "Remove legacy Auroradio uninstaller file: $1"
       Delete "$1\Uninstall ${PRODUCT_FILENAME}.exe"
     ${EndIf}
   ${EndIf}
@@ -741,17 +741,17 @@ Function MineradioDeleteLegacyUninstallerFileIfMissingMarker
   done:
 FunctionEnd
 
-Function MineradioValidateInstallDir
+Function AuroradioValidateInstallDir
   Push "$INSTDIR"
-  Call MineradioNormalizeInstallDir
+  Call AuroradioNormalizeInstallDir
   Pop $INSTDIR
 
   Push "$INSTDIR"
-  Call MineradioRegisteredInstallDirCanBeAdopted
+  Call AuroradioRegisteredInstallDirCanBeAdopted
   Pop $3
 
   Push "$INSTDIR"
-  Call MineradioExistingInstallPathCanBeAdopted
+  Call AuroradioExistingInstallPathCanBeAdopted
   Pop $4
 
   StrCpy $0 "$INSTDIR" 1 0
@@ -759,12 +759,12 @@ Function MineradioValidateInstallDir
   ${If} $1 == ":"
     ${If} $0 == "C"
     ${OrIf} $0 == "c"
-      Call MineradioHasPreferredInstallDrive
+      Call AuroradioHasPreferredInstallDrive
       Pop $2
       ${If} $2 == "1"
       ${AndIf} $3 != "1"
       ${AndIf} $4 != "1"
-        MessageBox MB_ICONSTOP|MB_OK "检测到这台电脑还有 D-Z 盘，Mineradio 不安装到 C 盘。请改选 D 盘或其它非 C 盘的 Mineradio 文件夹。$\r$\n$\r$\n如果电脑只有 C 盘，安装器会自动放行 C:\Mineradio。"
+        MessageBox MB_ICONSTOP|MB_OK "检测到这台电脑还有 D-Z 盘，Auroradio 不安装到 C 盘。请改选 D 盘或其它非 C 盘的 Auroradio 文件夹。$\r$\n$\r$\n如果电脑只有 C 盘，安装器会自动放行 C:\Auroradio。"
         Abort
       ${EndIf}
     ${EndIf}
@@ -777,14 +777,14 @@ Function MineradioValidateInstallDir
   ${If} $0 < $2
   ${OrIf} $1 != "\${MINERADIO_INSTALL_DIR_NAME}"
   ${AndIf} $1 != "\${MINERADIO_INSTALL_DIR_NAME_LOWER}"
-    MessageBox MB_ICONSTOP|MB_OK "安装目录必须是独立的 Mineradio 文件夹。请选择一个上级目录，安装器会自动创建 Mineradio 子文件夹。"
+    MessageBox MB_ICONSTOP|MB_OK "安装目录必须是独立的 Auroradio 文件夹。请选择一个上级目录，安装器会自动创建 Auroradio 子文件夹。"
     Abort
   ${EndIf}
 
   IfFileExists "$INSTDIR\*.*" 0 valid
 
   Push "$INSTDIR"
-  Call MineradioInstallDirLooksOwned
+  Call AuroradioInstallDirLooksOwned
   Pop $0
   ${If} $0 == "1"
     Goto valid
@@ -799,40 +799,40 @@ Function MineradioValidateInstallDir
   ${EndIf}
 
   Push "$INSTDIR"
-  Call MineradioInstallDirIsEmpty
+  Call AuroradioInstallDirIsEmpty
   Pop $0
   ${If} $0 == "1"
     Goto valid
   ${EndIf}
 
-  MessageBox MB_ICONSTOP|MB_OK "为避免卸载时误删其它文件，Mineradio 不能安装到已有文件的非专属目录。请新建或选择一个空的 Mineradio 文件夹。$\r$\n$\r$\n当前路径：$INSTDIR"
+  MessageBox MB_ICONSTOP|MB_OK "为避免卸载时误删其它文件，Auroradio 不能安装到已有文件的非专属目录。请新建或选择一个空的 Auroradio 文件夹。$\r$\n$\r$\n当前路径：$INSTDIR"
   Abort
 
   valid:
 FunctionEnd
-Function MineradioWelcomeShow
-  Call MineradioUsePreferredInstallDir
+Function AuroradioWelcomeShow
+  Call AuroradioUsePreferredInstallDir
 
   nsDialogs::Create 1018
-  Pop $MineradioWelcomePage
-  ${If} $MineradioWelcomePage == error
+  Pop $AuroradioWelcomePage
+  ${If} $AuroradioWelcomePage == error
     Abort
   ${EndIf}
 
-  SetCtlColors $MineradioWelcomePage "111217" "FFFFFF"
-  CreateFont $MineradioHeroFont "Microsoft YaHei UI" 24 700
-  CreateFont $MineradioTitleFont "Microsoft YaHei UI" 11 700
-  CreateFont $MineradioBodyFont "Microsoft YaHei UI" 9 400
-  CreateFont $MineradioSmallFont "Microsoft YaHei UI" 8 400
+  SetCtlColors $AuroradioWelcomePage "111217" "FFFFFF"
+  CreateFont $AuroradioHeroFont "Microsoft YaHei UI" 24 700
+  CreateFont $AuroradioTitleFont "Microsoft YaHei UI" 11 700
+  CreateFont $AuroradioBodyFont "Microsoft YaHei UI" 9 400
+  CreateFont $AuroradioSmallFont "Microsoft YaHei UI" 8 400
 
   ${NSD_CreateLabel} 22u 20u 120u 10u "${MINERADIO_INSTALL_BRAND}"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioSmallFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioSmallFont 1
   SetCtlColors $0 "3257F7" "FFFFFF"
 
   ${NSD_CreateLabel} 22u 42u 226u 30u "${MINERADIO_INSTALL_TITLE}"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioHeroFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioHeroFont 1
   SetCtlColors $0 "111217" "FFFFFF"
 
   ${NSD_CreateLabel} 22u 78u 36u 2u ""
@@ -841,105 +841,105 @@ Function MineradioWelcomeShow
 
   ${NSD_CreateLabel} 22u 96u 238u 24u "为这台电脑安装 ${PRODUCT_NAME}。默认安装到 D:\${MINERADIO_INSTALL_DIR_NAME}，下一步可以自由选择其它位置。"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioBodyFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioBodyFont 1
   SetCtlColors $0 "4B5263" "FFFFFF"
 
   ${NSD_CreateLabel} 22u 130u 238u 12u "默认位置：$INSTDIR"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioTitleFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioTitleFont 1
   SetCtlColors $0 "3257F7" "FFFFFF"
 
   !ifdef MINERADIO_INTERNAL_BETA
     ${NSD_CreateLabel} 22u 150u 238u 28u "${MINERADIO_INSTALL_NOTICE}"
     Pop $0
-    SendMessage $0 ${WM_SETFONT} $MineradioSmallFont 1
+    SendMessage $0 ${WM_SETFONT} $AuroradioSmallFont 1
     SetCtlColors $0 "B42318" "FFFFFF"
   !endif
 
   nsDialogs::Show
 FunctionEnd
 
-Function MineradioDirectoryBrowse
+Function AuroradioDirectoryBrowse
   nsDialogs::SelectFolderDialog "选择 ${PRODUCT_NAME} 安装文件夹" "$INSTDIR"
   Pop $0
   ${If} $0 != error
   ${AndIf} $0 != ""
     Push "$0"
-    Call MineradioNormalizeInstallDir
+    Call AuroradioNormalizeInstallDir
     Pop $0
     StrCpy $INSTDIR "$0"
-    SendMessage $MineradioDirectoryInput ${WM_SETTEXT} 0 "STR:$INSTDIR"
+    SendMessage $AuroradioDirectoryInput ${WM_SETTEXT} 0 "STR:$INSTDIR"
   ${EndIf}
 FunctionEnd
 
-Function MineradioDirectoryShow
-  Call MineradioUsePreferredInstallDir
+Function AuroradioDirectoryShow
+  Call AuroradioUsePreferredInstallDir
 
   nsDialogs::Create 1018
-  Pop $MineradioDirectoryPage
-  ${If} $MineradioDirectoryPage == error
+  Pop $AuroradioDirectoryPage
+  ${If} $AuroradioDirectoryPage == error
     Abort
   ${EndIf}
 
-  SetCtlColors $MineradioDirectoryPage "111217" "FFFFFF"
-  CreateFont $MineradioTitleFont "Microsoft YaHei UI" 15 700
-  CreateFont $MineradioBodyFont "Microsoft YaHei UI" 9 400
-  CreateFont $MineradioSmallFont "Microsoft YaHei UI" 8 500
+  SetCtlColors $AuroradioDirectoryPage "111217" "FFFFFF"
+  CreateFont $AuroradioTitleFont "Microsoft YaHei UI" 15 700
+  CreateFont $AuroradioBodyFont "Microsoft YaHei UI" 9 400
+  CreateFont $AuroradioSmallFont "Microsoft YaHei UI" 8 500
 
   ${NSD_CreateLabel} 22u 12u 238u 20u "选择安装位置"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioTitleFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioTitleFont 1
   SetCtlColors $0 "111217" "FFFFFF"
 
   ${NSD_CreateLabel} 22u 40u 238u 24u "你可以使用默认路径，也可以选择其它磁盘或文件夹。安装器会自动创建缺失的目录。"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioBodyFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioBodyFont 1
   SetCtlColors $0 "4B5263" "FFFFFF"
 
   ${NSD_CreateLabel} 22u 76u 238u 10u "安装目录"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioSmallFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioSmallFont 1
   SetCtlColors $0 "3257F7" "FFFFFF"
 
   ${NSD_CreateText} 22u 94u 178u 15u "$INSTDIR"
-  Pop $MineradioDirectoryInput
-  SendMessage $MineradioDirectoryInput ${WM_SETFONT} $MineradioBodyFont 1
-  SetCtlColors $MineradioDirectoryInput "111217" "FFFFFF"
+  Pop $AuroradioDirectoryInput
+  SendMessage $AuroradioDirectoryInput ${WM_SETFONT} $AuroradioBodyFont 1
+  SetCtlColors $AuroradioDirectoryInput "111217" "FFFFFF"
 
   ${NSD_CreateBrowseButton} 210u 93u 50u 17u "浏览..."
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioSmallFont 1
-  ${NSD_OnClick} $0 MineradioDirectoryBrowse
+  SendMessage $0 ${WM_SETFONT} $AuroradioSmallFont 1
+  ${NSD_OnClick} $0 AuroradioDirectoryBrowse
 
   ${NSD_CreateLabel} 22u 122u 238u 12u "默认推荐：D:\${MINERADIO_INSTALL_DIR_NAME}；选盘符会自动建文件夹。"
   Pop $0
-  SendMessage $0 ${WM_SETFONT} $MineradioSmallFont 1
+  SendMessage $0 ${WM_SETFONT} $AuroradioSmallFont 1
   SetCtlColors $0 "6B7280" "FFFFFF"
 
   nsDialogs::Show
 FunctionEnd
 
-Function MineradioDirectoryLeave
-  ${NSD_GetText} $MineradioDirectoryInput $0
+Function AuroradioDirectoryLeave
+  ${NSD_GetText} $AuroradioDirectoryInput $0
   ${If} $0 == ""
     MessageBox MB_ICONEXCLAMATION|MB_OK "请选择安装文件夹。"
     Abort
   ${EndIf}
   Push "$0"
-  Call MineradioNormalizeInstallDir
+  Call AuroradioNormalizeInstallDir
   Pop $0
   StrCpy $INSTDIR "$0"
-  SendMessage $MineradioDirectoryInput ${WM_SETTEXT} 0 "STR:$INSTDIR"
-  Call MineradioValidateInstallDir
+  SendMessage $AuroradioDirectoryInput ${WM_SETTEXT} 0 "STR:$INSTDIR"
+  Call AuroradioValidateInstallDir
 FunctionEnd
 !endif
 
 !ifdef BUILD_UNINSTALLER
 !macro customUnInit
-  Call un.MineradioValidateUninstallDir
+  Call un.AuroradioValidateUninstallDir
 !macroend
 
-Function un.MineradioInstallDirLooksOwned
+Function un.AuroradioInstallDirLooksOwned
   Exch $0
   StrCpy $1 "0"
 
@@ -950,10 +950,10 @@ Function un.MineradioInstallDirLooksOwned
   Exch $0
 FunctionEnd
 
-Function un.MineradioNormalizeInstallDir
+Function un.AuroradioNormalizeInstallDir
   Exch $0
   Push "$0"
-  Call un.MineradioTrimInstallDir
+  Call un.AuroradioTrimInstallDir
   Pop $0
   StrLen $4 "${MINERADIO_INSTALL_DIR_NAME}"
   StrLen $1 "$0"
@@ -982,7 +982,7 @@ Function un.MineradioNormalizeInstallDir
   Exch $0
 FunctionEnd
 
-Function un.MineradioTrimInstallDir
+Function un.AuroradioTrimInstallDir
   Exch $0
 
   trim:
@@ -998,31 +998,31 @@ Function un.MineradioTrimInstallDir
   Exch $0
 FunctionEnd
 
-Function un.MineradioValidateUninstallDir
+Function un.AuroradioValidateUninstallDir
   Push "$INSTDIR"
-  Call un.MineradioTrimInstallDir
+  Call un.AuroradioTrimInstallDir
   Pop $0
   Push "$0"
-  Call un.MineradioNormalizeInstallDir
+  Call un.AuroradioNormalizeInstallDir
   Pop $1
   ${If} $0 != $1
-    MessageBox MB_OK|MB_ICONSTOP "当前卸载路径不是 Mineradio 专属目录，已阻止卸载以避免误删其它文件。$\r$\n$\r$\n当前路径：$INSTDIR$\r$\n安全路径应为：$0"
+    MessageBox MB_OK|MB_ICONSTOP "当前卸载路径不是 Auroradio 专属目录，已阻止卸载以避免误删其它文件。$\r$\n$\r$\n当前路径：$INSTDIR$\r$\n安全路径应为：$0"
     SetErrorLevel 2
     Quit
   ${EndIf}
   StrCpy $INSTDIR "$0"
 
   Push "$INSTDIR"
-  Call un.MineradioInstallDirLooksOwned
+  Call un.AuroradioInstallDirLooksOwned
   Pop $0
   ${If} $0 != "1"
-    MessageBox MB_OK|MB_ICONSTOP "无法确认当前目录属于 Mineradio，已阻止卸载以避免误删其它文件。$\r$\n$\r$\n当前路径：$INSTDIR"
+    MessageBox MB_OK|MB_ICONSTOP "无法确认当前目录属于 Auroradio，已阻止卸载以避免误删其它文件。$\r$\n$\r$\n当前路径：$INSTDIR"
     SetErrorLevel 2
     Quit
   ${EndIf}
 FunctionEnd
 
-Function un.MineradioRemoveInstalledFiles
+Function un.AuroradioRemoveInstalledFiles
   SetOutPath $TEMP
 
   Delete "$INSTDIR\${PRODUCT_FILENAME}.exe"

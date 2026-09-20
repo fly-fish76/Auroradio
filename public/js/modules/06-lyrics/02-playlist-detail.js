@@ -85,7 +85,7 @@ function growQueuePanelRenderLimit(amount) {
   var current = queuePanelVisibleLimit(total);
   var next = Math.min(total, current + (amount || QUEUE_PANEL_BATCH_SIZE));
   if (next <= current) return false;
-  var panel = document.getElementById('playlist-panel');
+  var panel = playlistPanelScroller('queue');
   var keepTop = panel ? panel.scrollTop : 0;
   var miniList = document.getElementById('mini-queue-list');
   var keepMiniTop = miniList ? miniList.scrollTop : 0;
@@ -99,7 +99,7 @@ function growQueuePanelRenderLimit(amount) {
   return true;
 }
 function maybeGrowQueuePanelRenderLimit() {
-  var panel = document.getElementById('playlist-panel');
+  var panel = playlistPanelScroller('queue');
   if (!panel || queueViewTab !== 'queue' || !playQueue.length) return;
   if (queuePanelVisibleLimit(playQueue.length) >= playQueue.length) return;
   if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 220) growQueuePanelRenderLimit();
@@ -115,16 +115,17 @@ function bindMiniQueueLazyRender() {
   }, { passive: true });
 }
 function normalizePlaylistProvider(provider) {
-  if (provider === 'qq' || provider === 'kugou' || provider === 'qishui' || provider === 'spotify') return provider;
+  if (provider === 'qq' || provider === 'kugou' || provider === 'qishui' || provider === 'spotify' || provider === 'local' || provider === 'lxsl') return provider;
   return 'netease';
 }
 function playlistProviderLabel(provider) {
   provider = normalizePlaylistProvider(provider);
-  return provider === 'qq' ? 'QQ' : (provider === 'kugou' ? 'KG' : (provider === 'qishui' ? 'QS' : (provider === 'spotify' ? 'SP' : 'NE')));
+  return provider === 'qq' ? 'QQ' : (provider === 'kugou' ? 'KG' : (provider === 'qishui' ? 'QS' : (provider === 'spotify' ? 'SP' : (provider === 'lxsl' ? '在线' : (provider === 'local' ? '本地' : 'NE')))));
 }
 function playlistProviderName(provider) {
   provider = normalizePlaylistProvider(provider);
   if (provider === 'spotify') return 'Spotify';
+  if (provider === 'local') return '本地歌单';
   return provider === 'qq' ? 'QQ 音乐' : (provider === 'kugou' ? '酷狗音乐' : (provider === 'qishui' ? '汽水音乐' : '网易云音乐'));
 }
 function playlistPanelKey(provider, id) {
@@ -137,6 +138,7 @@ function playlistPanelProviderId(provider, id) {
   if (provider === 'kugou') return 'kugou:' + id;
   if (provider === 'qishui') return 'qishui:' + id;
   if (provider === 'spotify') return 'spotify:' + id;
+  if (provider === 'local') return 'local:' + id;
   return id;
 }
 function playlistCardPriority(pl) {
@@ -173,6 +175,8 @@ function playlistPanelDetailRowsHtml(options) {
   start = Math.max(0, Math.min(start, Math.max(0, tracks.length - maxRows)));
   end = Math.min(tracks.length, Math.max(end, start + maxRows));
   var rows = '<div class="pl-detail-virtual-spacer" aria-hidden="true" style="height:' + (start * PLAYLIST_DETAIL_ROW_STEP) + 'px"></div>';
+  var rowKeyParts = String(st.key || '').split(':');
+  var isLocalDetail = normalizePlaylistProvider(rowKeyParts[0]) === 'local';
   rows += tracks.slice(start, end).map(function (song, localIndex) {
     var i = start + localIndex;
     var thumb = songCoverSrc(song, 60);
@@ -181,6 +185,7 @@ function playlistPanelDetailRowsHtml(options) {
       imgTag +
       '<div style="flex:1;min-width:0"><div class="pl-detail-row-title">' + escHtml(song.name || '') + '</div>' +
       '<button type="button" class="pl-detail-row-artist" data-pl-detail-artist="' + i + '">' + escHtml(song.artist || '未知歌手') + '</button></div>' +
+      (isLocalDetail ? '<button type="button" class="pl-detail-row-remove" data-pl-detail-remove="' + i + '" title="移出歌单">✕</button>' : '') +
       '</div>';
   }).join('');
   rows += '<div class="pl-detail-virtual-spacer" aria-hidden="true" style="height:' + (Math.max(0, tracks.length - end) * PLAYLIST_DETAIL_ROW_STEP) + 'px"></div>';
@@ -261,6 +266,13 @@ function playlistTracksEndpoint(provider, id, params) {
       query += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
     });
   }
+  if (provider === 'local') return ''; // 本地歌单不走网络分页
+  if (provider === 'lxsl') {
+    // 落雪在线歌单: id = '<source>:<playlistId>'
+    var slParts = String(id || '').split(':');
+    return '/api/lx/songlist/detail?source=' + encodeURIComponent(slParts[0] || 'wy') + '&id=' + encodeURIComponent(slParts.slice(1).join(':')) +
+      '&offset=' + Math.max(0, Number((params && params.offset) || 0)) + '&limit=' + Math.max(10, Number((params && params.limit) || 50));
+  }
   if (provider === 'qq') return '/api/qq/playlist/tracks?' + query;
   if (provider === 'kugou') return '/api/kugou/playlist/tracks?' + query;
   if (provider === 'qishui') return '/api/qishui/playlist/tracks?' + query;
@@ -271,21 +283,9 @@ function playlistPanelDetailHtml(pl, provider, detailWindow) {
   provider = normalizePlaylistProvider(provider);
   var key = playlistPanelKey(provider, pl && pl.id);
   if (playlistPanelDetailState.key !== key) return '';
-  var tracks = playlistPanelDetailState.tracks || [];
-  var loading = playlistPanelDetailState.loading;
-  var cover = pl && pl.cover ? (provider === 'netease' ? (pl.cover + '?param=96y96') : pl.cover) : '';
-  var img = cover ? '<img class="pl-detail-cover" src="' + escHtml(cover) + '" alt="" decoding="async" onerror="this.style.opacity=0.2">' : '<div class="pl-detail-cover"></div>';
-  var expectedTotal = Math.max(tracks.length, Number(playlistPanelDetailState.total) || Number(pl.trackCount) || 0);
   var rows = playlistPanelDetailRowsHtml(detailWindow);
-  var canUncollect = !!(pl && pl.subscribed && !pl.virtual && (provider === 'netease' || provider === 'qishui' || provider === 'spotify'));
-  var collectionButton = canUncollect
-    ? '<button class="fx-mini-btn ghost pl-detail-top-btn" type="button" data-pl-detail-collection="0">取消收藏</button>'
-    : '';
+  // 头部信息(封面/名称/数量)与操作按钮已并入上方展开的歌单卡片行, 详情区只保留歌曲列表
   return '<div class="pl-inline-detail" data-pl-detail="' + escHtml(key) + '" style="height:' + playlistPanelDetailShellHeight() + 'px">' +
-    '<div class="pl-detail-sticky">' +
-    '<div class="pl-detail-head">' + img + '<div style="flex:1;min-width:0"><div class="pl-detail-title">' + escHtml(pl.name || '歌单详情') + '</div><div class="pl-detail-sub">' + escHtml((expectedTotal || tracks.length || 0) + ' 首 · ' + (pl.creator || playlistProviderName(provider))) + '</div></div><div class="pl-detail-count">' + (loading && !tracks.length ? '载入中' : (tracks.length + (expectedTotal > tracks.length ? '/' + expectedTotal : ''))) + '</div></div>' +
-    '<div class="pl-detail-actions"><button class="pl-detail-play" type="button" data-pl-detail-play="' + escHtml(key) + '"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>播放歌单</button>' + collectionButton + '<button class="fx-mini-btn ghost pl-detail-top-btn" type="button" data-pl-detail-top="1">回到顶部</button></div>' +
-    '</div>' +
     '<div class="pl-detail-list" data-pl-detail-scroll="' + escHtml(key) + '">' + rows + '</div>' +
     '</div>';
 }
@@ -293,13 +293,13 @@ function renderPlaylistPanelDetailState() {
   renderUserPlaylistsList();
 }
 function scrollPlaylistPanelToTop() {
-  var panel = document.getElementById('playlist-panel');
+  var panel = playlistPanelScroller();
   if (!panel) return;
   try { panel.scrollTo({ top: 0, behavior: 'smooth' }); }
   catch (e) { panel.scrollTop = 0; }
 }
 function scrollPlaylistPanelDetailIntoView(key) {
-  var panel = document.getElementById('playlist-panel');
+  var panel = playlistPanelScroller('playlists');
   if (!panel || !key) return;
   requestAnimationFrame(function () {
     var detail = null;
@@ -358,6 +358,25 @@ async function loadMorePlaylistPanelDetailTracks(reason) {
   var parts = st.key.split(':');
   var provider = normalizePlaylistProvider(parts[0]);
   var pid = parts.slice(1).join(':');
+  // 本地歌单: 直接从 localStorage 读全量, 不走网络
+  if (provider === 'local') {
+    var localTracks = (typeof getLocalPlaylistSongs === 'function' ? getLocalPlaylistSongs(pid) : []).map(cloneSong);
+    st.tracks = localTracks;
+    st.total = localTracks.length;
+    st.nextOffset = localTracks.length;
+    st.hasMore = false;
+    st.loading = false;
+    st.loadingMore = false;
+    st.error = '';
+    st.message = localTracks.length ? '' : '歌单还是空的 · 从搜索结果收藏几首歌吧';
+    if (reason === 'initial') {
+      renderPlaylistPanelDetailState();
+      scrollPlaylistPanelDetailIntoView(st.key);
+    } else {
+      renderPlaylistPanelDetailRows();
+    }
+    return true;
+  }
   var offset = reason === 'initial' ? 0 : Math.max(0, Number(st.nextOffset) || st.tracks.length);
   var token = st.token;
   var controller = window.AbortController ? new AbortController() : null;
@@ -428,6 +447,16 @@ async function openPlaylistPanelDetail(provider, pid, title) {
     return;
   }
   cancelPlaylistPanelDetailRequest();
+  // 常听歌单统计 (收藏/本地歌单真实打开时计数)
+  if (typeof frequentPlaylistTrack === 'function') {
+    frequentPlaylistTrack({
+      type: provider === 'local' ? 'local' : 'account',
+      source: provider,
+      id: pid,
+      name: (pl && pl.name) || title || '',
+      cover: (pl && pl.cover) || '',
+    });
+  }
   var token = ++playlistPanelDetailState.token;
   playlistPanelDetailState = { key: key, loading: true, loadingMore: false, playlist: pl, tracks: [], token: token, total: Number(pl.trackCount) || 0, nextOffset: 0, hasMore: true, scrollTop: 0, controller: null, warmTimer: 0, renderLimit: PLAYLIST_DETAIL_INITIAL_RENDER, error: '', message: '' };
   renderPlaylistPanelDetailState();
@@ -441,6 +470,17 @@ function playPlaylistPanelDetail() {
   var provider = normalizePlaylistProvider(parts[0]);
   var pid = parts.slice(1).join(':');
   loadPlaylistIntoQueueById(playlistPanelProviderId(provider, pid), true, st.playlist && st.playlist.name || '');
+}
+function closePlaylistPanelDetail() {
+  if (!playlistPanelDetailState.key) return;
+  cancelPlaylistPanelDetailRequest();
+  playlistPanelDetailState.key = '';
+  playlistPanelDetailState.tracks = [];
+  playlistPanelDetailState.playlist = null;
+  playlistPanelDetailState.renderLimit = PLAYLIST_DETAIL_INITIAL_RENDER;
+  playlistPanelDetailState.error = '';
+  playlistPanelDetailState.message = '';
+  renderPlaylistPanelDetailState();
 }
 async function togglePlaylistPanelCollection(collected) {
   var state = playlistPanelDetailState;
@@ -506,7 +546,7 @@ function growPlaylistPanelDetailRenderLimit(amount) {
   return loadMorePlaylistPanelDetailTracks('manual');
 }
 function maybeGrowPlaylistPanelDetailRenderLimit() {
-  var panel = document.getElementById('playlist-panel');
+  var panel = playlistPanelScroller('playlists');
   var detail = panel && panel.querySelector('.pl-inline-detail[data-pl-detail]');
   if (!panel || !detail || !playlistPanelDetailState.hasMore || playlistPanelDetailState.loadingMore) return;
   var panelRect = panel.getBoundingClientRect();
@@ -540,9 +580,14 @@ function playlistPanelBuildVirtualEntries() {
   if (playlistPanelVirtualCache.revision === playlistCatalogRevision &&
       playlistPanelVirtualCache.detailKey === playlistPanelDetailState.key &&
       playlistPanelVirtualCache.detailSig === detailSig) return playlistPanelVirtualCache;
-  var labels = { netease: '网易云歌单', qq: 'QQ 音乐歌单', kugou: '酷狗音乐歌单', qishui: '汽水音乐歌单', spotify: 'Spotify 歌单' };
-  var order = ['netease', 'qq', 'kugou', 'qishui', 'spotify'];
-  var groups = { netease: [], qq: [], kugou: [], qishui: [], spotify: [] };
+  var labels = { local: '本地歌单', netease: '网易云歌单', qq: 'QQ 音乐歌单', kugou: '酷狗音乐歌单', qishui: '汽水音乐歌单', spotify: 'Spotify 歌单' };
+  var order = ['local', 'netease', 'qq', 'kugou', 'qishui', 'spotify'];
+  var groups = { local: [], netease: [], qq: [], kugou: [], qishui: [], spotify: [] };
+  if (typeof getLocalPlaylists === 'function') {
+    getLocalPlaylists().forEach(function (pl, localIndex) {
+      groups.local.push({ pl: pl, sourceIndex: localIndex });
+    });
+  }
   userPlaylists.forEach(function (pl, sourceIndex) {
     var key = playlistPanelGroupKey(pl);
     if (!groups[key]) groups[key] = [];
@@ -596,11 +641,11 @@ function playlistCatalogFooterHtml() {
     if (item.hasMore || item.loading) acc.pending = true;
     return acc;
   }, { loaded: 0, total: 0, pending: !!state.loading });
-  if (!totals.pending && !state.error) return '';
+  if (!totals.pending && !state.error) return (typeof localPlaylistFooterHtml === 'function' ? localPlaylistFooterHtml() : '');
   var label = state.error
     ? ('部分歌单载入失败 · 已显示 ' + userPlaylists.length + ' 个')
     : ('正在后台载入歌单 · ' + totals.loaded + (totals.total ? '/' + totals.total : ''));
-  return '<div class="playlist-catalog-status"><span class="queue-hydration-spinner spinning"></span><span>' + label + '</span></div>';
+  return '<div class="playlist-catalog-status"><span class="queue-hydration-spinner spinning"></span><span>' + label + '</span></div>' + (typeof localPlaylistFooterHtml === 'function' ? localPlaylistFooterHtml() : '');
 }
 function schedulePlaylistPanelVirtualRender() {
   if (playlistPanelVirtualCache.raf) return;
@@ -615,28 +660,33 @@ function bindPlaylistPanelLazyRender() {
   bindMiniQueueLazyRender();
   if (!panel || playlistPanelLazyBound) return;
   playlistPanelLazyBound = true;
-  panel.addEventListener('scroll', function () {
-    if (queueViewTab === 'queue') {
-      scheduleQueuePanelVirtualRender();
-      maybeRequestPlaylistQueuePageFromScroller(panel);
-    }
-    if (queueViewTab === 'playlists') {
-      schedulePlaylistPanelVirtualRender();
-      maybeGrowPlaylistPanelDetailRenderLimit();
-    }
-  }, { passive: true });
+  ['queue-pane', 'pl-pane', 'podcast-pane', 'songlist-pane'].forEach(function (paneId) {
+    var scroller = document.getElementById(paneId);
+    if (!scroller) return;
+    scroller.addEventListener('scroll', function () {
+      if (queueViewTab === 'queue') {
+        scheduleQueuePanelVirtualRender();
+        maybeRequestPlaylistQueuePageFromScroller(scroller);
+      }
+      if (queueViewTab === 'playlists') {
+        schedulePlaylistPanelVirtualRender();
+        maybeGrowPlaylistPanelDetailRenderLimit();
+      }
+    }, { passive: true });
+  });
 }
 function renderUserPlaylistsList(opts) {
   opts = opts || {};
   var $pl = document.getElementById('pl-list');
   var seq = ++playlistRenderSeq;
-  if (!userPlaylists.length) {
+  var localPlaylistCount = typeof getLocalPlaylists === 'function' ? getLocalPlaylists().length : 0;
+  if (!userPlaylists.length && !localPlaylistCount) {
     $pl.innerHTML = playlistCatalogSyncState && playlistCatalogSyncState.loading
       ? miniQueueSkeleton() + playlistCatalogFooterHtml()
       : '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">未找到歌单</div>';
     return;
   }
-  var panel = document.getElementById('playlist-panel');
+  var panel = playlistPanelScroller('playlists');
   var keepTop = panel ? panel.scrollTop : 0;
   function playlistCardHtml(pl, sourceIndex) {
     var provider = normalizePlaylistProvider(pl.provider);
@@ -646,9 +696,28 @@ function renderUserPlaylistsList(opts) {
     var key = playlistPanelKey(provider, pl.id);
     var isExpanded = playlistPanelDetailState.key === key;
     var expanded = isExpanded ? ' expanded' : '';
+    var actions = '';
+    {
+      var canUncollect = !!(pl && pl.subscribed && !pl.virtual && (provider === 'netease' || provider === 'qishui' || provider === 'spotify'));
+      var menuItems = '';
+      if (provider === 'local') {
+        menuItems += '<button class="pl-menu-item" type="button" data-pl-detail-rename="1">重命名</button>';
+        menuItems += '<button class="pl-menu-item" type="button" data-pl-detail-delete="1">删除歌单</button>';
+      }
+      if (canUncollect) {
+        menuItems += '<button class="pl-menu-item" type="button" data-pl-detail-collection="0">取消收藏</button>';
+      }
+      actions = '<div class="pl-card-actions">' +
+        (isExpanded ? '<button class="pl-card-back" type="button" data-pl-card-back="1" aria-label="返回列表"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>' : '') +
+        '<button class="pl-card-play" type="button" data-pl-detail-play="' + escHtml(String(key)) + '"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>播放歌单</button>' +
+        '<button class="pl-card-more" type="button" data-pl-card-more="1" aria-label="更多操作" aria-expanded="false">+</button>' +
+        '<div class="pl-card-menu" hidden>' + menuItems + '</div>' +
+        '</div>';
+    }
     return '<div class="pl-card' + expanded + '" aria-expanded="' + (isExpanded ? 'true' : 'false') + '" data-playlist-provider="' + provider + '" data-playlist-id="' + escHtml(String(pl.id || '')) + '" data-playlist-title="' + escHtml(pl.name || '') + '" data-playlist-index="' + sourceIndex + '">' +
       imgTag +
       '<div style="flex:1;min-width:0"><div class="pl-name">' + escHtml(pl.name) + '<span class="tag-source ' + provider + '" style="margin-left:6px;vertical-align:1px">' + providerLabel + '</span></div><div class="pl-sub">' + pl.trackCount + ' 首 · ' + escHtml(pl.creator || '') + '</div></div>' +
+      actions +
       '</div>';
   }
   var cache = playlistPanelBuildVirtualEntries();
@@ -676,7 +745,7 @@ function renderUserPlaylistsList(opts) {
   if (panel && opts.preserveScroll) panel.scrollTop = keepTop;
   bindPlaylistPanelDetailScroller();
   if (typeof requestNextPlaylistCatalogPage === 'function' && end >= cache.entries.length - 8) requestNextPlaylistCatalogPage('panel-near-end');
-  if (opts.animate && seq === playlistRenderSeq) animateVisiblePanelList($pl, '.pl-card', document.getElementById('playlist-panel'));
+  if (opts.animate && seq === playlistRenderSeq) animateVisiblePanelList($pl, '.pl-card', playlistPanelScroller('playlists'));
 }
 function renderMyPodcastCollections(opts) {
   opts = opts || {};
@@ -699,9 +768,44 @@ function renderMyPodcastCollections(opts) {
       '<div style="flex:1;min-width:0"><div class="pl-name">' + escHtml(pc.title || '') + '</div><div class="pl-sub">' + (pc.count || 0) + ' 项 · ' + escHtml(pc.sub || '') + '</div></div>' +
       '</div>';
   }).join('');
-  if (opts.animate) animateVisiblePanelList($pod, '.pl-card', document.getElementById('playlist-panel'));
+  if (opts.animate) animateVisiblePanelList($pod, '.pl-card', playlistPanelScroller('podcasts'));
+}
+// 菜单打开时给所在卡打 menu-open 标记: 每张卡因 will-change 自成堆叠上下文,
+// 不抬整卡的话, DOM 靠后的卡会盖住前一张卡弹出的菜单
+function syncPlCardMenuOpenClass() {
+  document.querySelectorAll('#pl-list .pl-card').forEach(function (card) {
+    var open = !!card.querySelector('.pl-card-menu:not([hidden])');
+    card.classList.toggle('menu-open', open);
+  });
 }
 document.getElementById('pl-list').addEventListener('click', function (e) {
+  var backBtn = e.target && e.target.closest ? e.target.closest('[data-pl-card-back]') : null;
+  if (backBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    closePlaylistPanelDetail();
+    return;
+  }
+  var moreBtn = e.target && e.target.closest ? e.target.closest('[data-pl-card-more]') : null;
+  if (moreBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    var wrap = moreBtn.closest('.pl-card-actions');
+    var menu = wrap ? wrap.querySelector('.pl-card-menu') : null;
+    if (menu) {
+      var willOpen = menu.hidden;
+      document.querySelectorAll('#pl-list .pl-card-menu').forEach(function (m) { m.hidden = true; });
+      document.querySelectorAll('#pl-list [data-pl-card-more]').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+      menu.hidden = !willOpen;
+      moreBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      syncPlCardMenuOpenClass();
+    }
+    return;
+  }
+  // 点其它任何位置时收起已打开的 ··· 菜单
+  document.querySelectorAll('#pl-list .pl-card-menu').forEach(function (m) { m.hidden = true; });
+  document.querySelectorAll('#pl-list [data-pl-card-more]').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+  syncPlCardMenuOpenClass();
   var loadMore = e.target && e.target.closest ? e.target.closest('[data-pl-load-more]') : null;
   if (loadMore) {
     e.preventDefault();
@@ -742,6 +846,27 @@ document.getElementById('pl-list').addEventListener('click', function (e) {
     e.preventDefault();
     e.stopPropagation();
     openPlaylistPanelDetailArtist(Number(artist.getAttribute('data-pl-detail-artist')));
+    return;
+  }
+  var removeSong = e.target && e.target.closest ? e.target.closest('[data-pl-detail-remove]') : null;
+  if (removeSong) {
+    e.preventDefault();
+    e.stopPropagation();
+    removeLocalSongFromDetail(Number(removeSong.getAttribute('data-pl-detail-remove')));
+    return;
+  }
+  var renameBtn = e.target && e.target.closest ? e.target.closest('[data-pl-detail-rename]') : null;
+  if (renameBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    renameLocalPlaylistFromDetail(renameBtn.closest('.pl-card'));
+    return;
+  }
+  var deleteBtn = e.target && e.target.closest ? e.target.closest('[data-pl-detail-delete]') : null;
+  if (deleteBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteLocalPlaylistFromDetail(deleteBtn.closest('.pl-card'));
     return;
   }
   var row = e.target && e.target.closest ? e.target.closest('[data-pl-detail-row]') : null;

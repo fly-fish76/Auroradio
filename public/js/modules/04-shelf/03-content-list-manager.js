@@ -709,6 +709,26 @@ function makeContentListManager() {
         provider: qqPlaylistId ? 'qq' : (kugouPlaylistId ? 'kugou' : (qishuiPlaylistId ? 'qishui' : (spotifyPlaylistId ? 'spotify' : 'netease'))),
         id: qqPlaylistId || kugouPlaylistId || qishuiPlaylistId || spotifyPlaylistId || playlistId
       };
+      // 本地歌单: 直接从 localStorage 全量载入, 不走网络
+      // contentSource 保留 local 形状, 供 playRow 拼回 'local:<id>' 入队
+      var localPlaylistId = String(playlistId || '').indexOf('local:') === 0 ? String(playlistId).slice(6) : '';
+      if (localPlaylistId) {
+        var localSongs = (typeof getLocalPlaylistSongs === 'function' ? getLocalPlaylistSongs(localPlaylistId) : []).map(cloneSong);
+        disposeRows();
+        allTracks = localSongs.length ? localSongs : [{ name: '歌单为空', artist: '' }];
+        contentSource = { provider: 'local', id: localPlaylistId };
+        contentNextOffset = allTracks.length;
+        contentTotalCount = localSongs.length;
+        contentHasMore = false;
+        centerTarget = 0;
+        centerSmooth = 0;
+        panelDirty = true;
+        rowsDirty = true;
+        startRowsLoadedIntro();
+        syncRenderedRows(true);
+        prefetchContentCoversAround(0, 'initial');
+        return;
+      }
       // 拉取歌单/播客集合
       var r = null;
       try {

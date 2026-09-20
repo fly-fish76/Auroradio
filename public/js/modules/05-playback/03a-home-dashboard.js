@@ -39,7 +39,7 @@ var HOME_DASHBOARD_REVIEW_DEFAULTS = [
   { text: '错过落日余晖，还会有满天星辰。', source: '每日热评' },
   { text: '保持热爱，奔赴下一场山海。', source: '每日热评' },
   { text: '答案在路上，自由在风里。', source: '每日热评' },
-  { text: '让今天的声音，从你喜欢的地方开始。', source: 'Mineradio' },
+  { text: '让今天的声音，从你喜欢的地方开始。', source: 'Auroradio' },
 ];
 
 function homeDashboardSvgText(text) {
@@ -109,7 +109,7 @@ function homeDashboardDayNumber() {
 
 function homeDashboardSelectedReview() {
   var reviews = homeDashboardReadReviews();
-  if (!reviews.length) return { text: '让今天的声音，从你喜欢的地方开始。', source: 'Mineradio' };
+  if (!reviews.length) return { text: '让今天的声音，从你喜欢的地方开始。', source: 'Auroradio' };
   var index = ((homeDashboardDayNumber() + homeDashboardReviewOffset) % reviews.length + reviews.length) % reviews.length;
   return reviews[index];
 }
@@ -536,7 +536,6 @@ function renderHomeDashboardQuickCards() {
   var summary = typeof homeListenSummary === 'function' ? homeListenSummary() : {};
   var recent = summary && summary.recent || null;
   var current = homeDashboardCurrentSong();
-  var daily = homeDiscoverState && homeDiscoverState.songs && homeDiscoverState.songs[0] || null;
   var continueItem = current || recent;
   var localSongs = homeDashboardLocalSongs();
   var localCount = localSongs.length;
@@ -554,21 +553,12 @@ function renderHomeDashboardQuickCards() {
       className: 'home-card-featured',
     },
     {
-      label: 'LIBRARY',
-      title: '音乐库',
-      sub: libraryCount ? (libraryCount + ' 项内容 · 本地音乐与歌单') : '歌单、本地音乐和已登录平台',
+      label: 'PLAZA',
+      title: '音乐广场',
+      sub: '在线歌单广场 · 五平台免登录',
       cover: localSongs[0] ? homeDashboardSongCover(localSongs[0], 260) : '',
-      action: 'openHomeDashboardLibrary()',
+      action: 'openSongListPlaza()',
       tone: 'library',
-      className: 'home-card-quick',
-    },
-    {
-      label: 'DAILY MIX',
-      title: '每日推荐',
-      sub: daily ? ((daily.name || daily.title || '今日歌曲') + (homeDashboardSubtitle(daily) ? ' · ' + homeDashboardSubtitle(daily) : '')) : '使用当前 Mineradio 推荐数据',
-      cover: homeDashboardSongCover(daily, 260),
-      action: 'playHomeDaily()',
-      tone: 'mix',
       className: 'home-card-quick',
     },
     {
@@ -760,7 +750,7 @@ function renderHomeDashboardDiscovery() {
     return '<button class="home-discovery-song" type="button" onclick="playHomeDashboardDiscoverySong(' + index + ')">' +
       '<span class="home-discovery-cover"' + coverStyle + '></span>' +
       '<span class="home-discovery-song-copy"><span class="home-discovery-song-name">' + escHtml(song.name || song.title || '未知歌曲') + '</span>' +
-      '<span class="home-discovery-song-artist">' + escHtml(homeDashboardSubtitle(song) || 'Mineradio 推荐') + '</span></span></button>';
+      '<span class="home-discovery-song-artist">' + escHtml(homeDashboardSubtitle(song) || 'Auroradio 推荐') + '</span></span></button>';
   }).join('');
 }
 
@@ -1279,6 +1269,7 @@ function renderHomeDashboard() {
   renderHomeDashboardHero();
   renderHomeDashboardQuickCards();
   renderHomeInsightDock();
+  if (typeof renderHomeFrequentPlaylists === 'function') renderHomeFrequentPlaylists();
   scheduleHomeDashboardRefresh();
 }
 

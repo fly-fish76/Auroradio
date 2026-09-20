@@ -2,6 +2,9 @@ const { contextBridge, ipcRenderer, clipboard, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWindow', {
   isDesktop: true,
+  // 入口页初始化完成（入场动画即将开始）时通知主进程显示窗口：主线程繁忙时
+  // rAF 探针可能迟迟无法执行，IPC 走任务队列更可靠。
+  notifyEntryVisualReady: () => ipcRenderer.send('mineradio-entry-visual-ready'),
   minimize: () => ipcRenderer.invoke('desktop-window-minimize'),
   restore: () => ipcRenderer.invoke('desktop-window-restore'),
   toggleMaximize: () => ipcRenderer.invoke('desktop-window-toggle-maximize'),
@@ -76,7 +79,6 @@ contextBridge.exposeInMainWorld('desktopWindow', {
   clearQishuiMusicLogin: () => ipcRenderer.invoke('qishui-music-clear-login'),
   openSpotifyMusicLogin: () => ipcRenderer.invoke('spotify-music-open-login'),
   clearSpotifyMusicLogin: () => ipcRenderer.invoke('spotify-music-clear-login'),
-  openUpdatePage: (url) => ipcRenderer.invoke('mineradio-open-update-page', String(url || '')),
   restartApp: () => ipcRenderer.invoke('mineradio-restart-app'),
   configureGlobalHotkeys: (bindings) => ipcRenderer.invoke('mineradio-hotkeys-configure-global', bindings || []),
   copyText: (text) => {
@@ -87,6 +89,7 @@ contextBridge.exposeInMainWorld('desktopWindow', {
   exportJsonFile: (payload) => ipcRenderer.invoke('mineradio-export-json-file', payload || {}),
   exportLoginCookie: (provider) => ipcRenderer.invoke('mineradio-export-login-cookie', provider || ''),
   importJsonFile: () => ipcRenderer.invoke('mineradio-import-json-file'),
+  importJsFile: () => ipcRenderer.invoke('mineradio-import-js-file'),
   readCurrentFxAutosaveSync: () => ipcRenderer.sendSync('mineradio-current-fx-autosave-read-sync'),
   saveCurrentFxAutosaveSync: (payload) => ipcRenderer.sendSync('mineradio-current-fx-autosave-save-sync', payload || {}),
   saveCurrentFxAutosave: (payload) => ipcRenderer.invoke('mineradio-current-fx-autosave-save', payload || {}),

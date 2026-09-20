@@ -75,7 +75,7 @@ async function mainTarget(timeoutMs = 15000) {
     } catch (_) { }
     await sleep(100);
   }
-  throw new Error('Mineradio CDP target was not ready');
+  throw new Error('Auroradio CDP target was not ready');
 }
 
 async function run() {
@@ -189,7 +189,7 @@ async function run() {
     });
     await sleep(140);
 
-    const marker = `MineradioKeyboardFocus-${Date.now()}`;
+    const marker = `AuroradioKeyboardFocus-${Date.now()}`;
     await client.call('Input.insertText', { text: marker });
     await client.call('Input.dispatchKeyEvent', {
       type: 'keyDown',
@@ -225,7 +225,7 @@ async function run() {
     assert.equal(restored.trustedPointerDown, true,
       'CDP pointer plumbing did not reach the renderer as a trusted pointer event');
     assert.equal(restored.documentFocused, true,
-      'trusted Mineradio pointerdown did not restore renderer keyboard focus');
+      'trusted Auroradio pointerdown did not restore renderer keyboard focus');
     assert.equal(restored.activeId, 'search-input');
     assert.equal(restored.inserted, true, 'focused search input did not accept text');
     assert.equal(restored.f13 > 0, true, 'renderer did not receive a keydown after focus restoration');
@@ -248,7 +248,7 @@ async function run() {
       manualHardwareChecksStillRequired: [
         'Click the search field with the real mouse and type English text.',
         'Use the real Chinese IME and confirm composition/candidate input works.',
-        'After clicking a real desktop icon, click Mineradio again and test Space, arrows, and configured local hotkeys.',
+        'After clicking a real desktop icon, click Auroradio again and test Space, arrows, and configured local hotkeys.',
       ],
       leftEnabled: leaveEnabled,
     }, null, 2));

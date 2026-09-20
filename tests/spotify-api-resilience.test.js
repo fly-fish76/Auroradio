@@ -47,7 +47,7 @@ async function run() {
   process.env.SPOTIFY_CLIENT_ID = 'spotify-test-client';
   delete process.env.SPOTIFY_CLIENT_SECRET;
 
-  const spotify = require('../spotify-api');
+  const spotify = require('../services/spotify-api');
   const runtime = spotify._test;
   try {
     spotify.saveSpotifyConfig({ clientId: 'spotify-test-client', clientSecret: 'must-not-be-stored' });

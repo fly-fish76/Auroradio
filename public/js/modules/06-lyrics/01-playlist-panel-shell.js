@@ -37,6 +37,12 @@ function smoothScrollToItem(scroller, item, opts) {
     scroller.scrollTop = target;
   }
 }
+// 面板外壳不滚动, 滚动发生在当前激活的列表分区(queue/pl/podcast/songlist pane)上
+function playlistPanelScroller(tab) {
+  var idByTab = { queue: 'queue-pane', playlists: 'pl-pane', podcasts: 'podcast-pane', songlists: 'songlist-pane' };
+  var el = document.getElementById(idByTab[tab || queueViewTab] || '');
+  return el || document.getElementById('playlist-panel');
+}
 function bindSmoothWheelScroll(scroller) {
   if (!scroller || scroller.__smoothWheelBound) return;
   scroller.__smoothWheelBound = true;
@@ -88,6 +94,10 @@ function bindSmoothQueueScrolling() {
     'search-results',
     'fx-panel',
     'playlist-panel',
+    'queue-pane',
+    'pl-pane',
+    'podcast-pane',
+    'songlist-pane',
     'track-detail-body'
   ].forEach(function (id) {
     bindSmoothWheelScroll(document.getElementById(id));
@@ -151,10 +161,8 @@ function closePlaylistPanelSoft(reason) {
   if (!panel.classList.contains('peek') && !panel.classList.contains('show')) return false;
   if (peekTimers.pl) { clearTimeout(peekTimers.pl); peekTimers.pl = null; }
   if (typeof resetSecondaryPlaylistEdgeGuard === 'function') resetSecondaryPlaylistEdgeGuard();
-  panel.classList.add('playlist-panel-closing');
-  panel.classList.remove('peek', 'show');
-  markPlaylistPanelMotion(panel, playlistPanelMotionMs('close'));
-  setTimeout(function () { panel.classList.remove('playlist-panel-closing'); }, playlistPanelMotionMs('close') + 80);
+  // 位姿交给缓冲区跟随控制器, 类由 playlistScrubTick 滞回移除
+  if (typeof playlistScrubSetTarget === 'function') playlistScrubSetTarget(0);
   return true;
 }
 function applyPlaylistPanelPinState(openPanel) {
@@ -166,6 +174,7 @@ function applyPlaylistPanelPinState(openPanel) {
       panel.dataset.preserveTabOnOpen = '1';
       setPeek(panel, true, 'pl');
     }
+    if (typeof syncHomeRotationForPlaylistPanel === 'function') syncHomeRotationForPlaylistPanel();
   }
   if (btn) {
     btn.classList.toggle('active', !!playlistPanelPinned);
@@ -190,18 +199,18 @@ function scrollPlaylistPanelToCurrent() {
   panel.__lastCurrentScrollAt = now;
   requestAnimationFrame(function () {
     renderQueuePanel({ animate: false, scrollCurrent: true });
-    smoothScrollToItem(panel, list.querySelector('.queue-item.now'), { duration: 0.28, align: 0.34 });
+    smoothScrollToItem(playlistPanelScroller('queue'), list.querySelector('.queue-item.now'), { duration: 0.28, align: 0.34 });
   });
 }
 function animatePlaylistPanelCurrentTab(panel, opts) {
   opts = opts || {};
   panel = panel || document.getElementById('playlist-panel');
   if (queueViewTab === 'queue') {
-    animateVisiblePanelList(document.getElementById('queue-list'), '.queue-item', panel, '.queue-item.now', { scrollActive: opts.scrollActive !== false });
+    animateVisiblePanelList(document.getElementById('queue-list'), '.queue-item', playlistPanelScroller('queue'), '.queue-item.now', { scrollActive: opts.scrollActive !== false });
   } else if (queueViewTab === 'playlists') {
-    animateVisiblePanelList(document.getElementById('pl-list'), '.pl-card', panel);
+    animateVisiblePanelList(document.getElementById('pl-list'), '.pl-card', playlistPanelScroller('playlists'));
   } else {
-    animateVisiblePanelList(document.getElementById('podcast-list'), '.pl-card', panel);
+    animateVisiblePanelList(document.getElementById('podcast-list'), '.pl-card', playlistPanelScroller('podcasts'));
   }
 }
 function preparePlaylistPanelTabOnOpen(panel) {
@@ -225,12 +234,24 @@ function switchPlaylistTab(tab, opts) {
   if (playlistTab) playlistTab.classList.toggle('active', tab === 'playlists');
   var podcastTab = document.getElementById('tab-podcast');
   if (podcastTab) podcastTab.classList.toggle('active', tab === 'podcasts');
+  var songlistTab = document.getElementById('tab-songlist');
+  if (songlistTab) songlistTab.classList.toggle('active', tab === 'songlists');
   var queuePane = document.getElementById('queue-pane');
   var playlistPane = document.getElementById('pl-pane');
   if (queuePane) queuePane.style.display = tab === 'queue' ? '' : 'none';
   if (playlistPane) playlistPane.style.display = tab === 'playlists' ? '' : 'none';
   var podcastPane = document.getElementById('podcast-pane');
   if (podcastPane) podcastPane.style.display = tab === 'podcasts' ? '' : 'none';
+  var songlistPane = document.getElementById('songlist-pane');
+  if (songlistPane) songlistPane.style.display = tab === 'songlists' ? '' : 'none';
+  if (tab === 'songlists' && typeof slLoadTags === 'function' && typeof slRefreshSquare === 'function') {
+    if (!slSquareState.lists.length) {
+      slLoadTags();
+      slRefreshSquare(true);
+    } else {
+      renderSongListSquarePane();
+    }
+  }
   if ((tab === 'playlists' || tab === 'podcasts') && opts.refresh !== false) refreshUserPlaylists();
   if (opts.animate !== false) animatePlaylistPanelCurrentTab(document.getElementById('playlist-panel'));
 }
@@ -453,10 +474,11 @@ function renderQueuePanel(opts) {
     renderMiniQueuePanel();
     var panel = document.getElementById('playlist-panel');
     if (panel && (panel.classList.contains('show') || panel.classList.contains('peek')) && queueViewTab === 'queue') switchPlaylistTab('playlists', { save: false });
+    if (typeof slRefreshPlazaPlayingRows === 'function') slRefreshPlazaPlayingRows();
     return;
   }
   var total = playQueue.length;
-  var panelScroller = document.getElementById('playlist-panel');
+  var panelScroller = playlistPanelScroller('queue');
   var windowInfo = queuePanelVirtualWindow($ql, panelScroller, total, false, opts.scrollCurrent ? currentIdx : -1);
   var visibleQueue = playQueue.slice(windowInfo.start, windowInfo.end);
   $ql.innerHTML = queueVirtualSpacerHtml(windowInfo.top) + visibleQueue.map(function (song, localIndex) {
@@ -476,6 +498,7 @@ function renderQueuePanel(opts) {
   }).join('') + queueVirtualSpacerHtml(windowInfo.bottom) + queueHydrationFooterHtml(false);
   if (opts.animate && seq === queueRenderSeq) animateVisiblePanelList($ql, '.queue-item', document.getElementById('playlist-panel'), '.queue-item.now');
   renderMiniQueuePanel({ scrollCurrent: opts.scrollCurrent !== false && miniQueueOpen });
+  if (typeof slRefreshPlazaPlayingRows === 'function') slRefreshPlazaPlayingRows();
 }
 function playlistCatalogProviderArray(provider) {
   if (provider === 'netease') return neteasePlaylists;
@@ -608,7 +631,14 @@ function requestNextPlaylistCatalogPage(reason) {
 async function refreshUserPlaylists(force) {
   if (!loginStatus.loggedIn && !qqLoginStatus.loggedIn && !kugouLoginStatus.loggedIn && !qishuiLoginStatus.loggedIn && !spotifyLoginStatus.loggedIn) {
     resetPlaylistPanelRenderLimit();
-    document.getElementById('pl-list').innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">登录后显示个人歌单</div>';
+    // 未登录任何平台: 本地歌单始终可用, 不再挡登录
+    if (typeof getLocalPlaylists === 'function' && getLocalPlaylists().length) {
+      renderUserPlaylistsList({ animate: isPlaylistPanelVisibleForRender() });
+      var podcastListLocal = document.getElementById('podcast-list');
+      if (podcastListLocal) podcastListLocal.innerHTML = '<div style="text-align:center;padding:14px 0;color:rgba(255,255,255,.28);font-size:11.5px">登录后显示我的播客</div>';
+      return;
+    }
+    document.getElementById('pl-list').innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">还没有歌单 · 在设置里可从落雪导入</div>';
     var podcastListLoggedOut = document.getElementById('podcast-list');
     if (podcastListLoggedOut) podcastListLoggedOut.innerHTML = '<div style="text-align:center;padding:14px 0;color:rgba(255,255,255,.28);font-size:11.5px">登录后显示我的播客</div>';
     return;

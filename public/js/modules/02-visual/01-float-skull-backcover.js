@@ -419,9 +419,13 @@ function createSkullParticleLayer() {
       uBeat: uniforms.uBeat,
       uJawOpen: { value: 0 },
       uSkullFlash: { value: 0 },
+      uParticleCount: { value: 1.0 },
+      uSpeed: { value: 1.0 },
+      uDensityBoost: { value: 1.0 },
       uPointScale: uniforms.uPointScale,
       uBloomStrength: uniforms.uBloomStrength,
       uColorBoost: uniforms.uColorBoost,
+      uBright: uniforms.uBright,
       uOpacity: { value: 0 },
       uColorA: { value: new THREE.Color('#b8ae98') },
       uColorB: { value: new THREE.Color('#fff4d8') },
@@ -433,6 +437,7 @@ function createSkullParticleLayer() {
       'attribute float seed,kind;',
       'uniform float uTime,uPixel,uPointScale,uBloomStrength,uColorBoost;',
       'uniform float uBass,uMid,uTreble,uBeat,uJawOpen,uSkullFlash;',
+      'uniform float uParticleCount,uSpeed,uDensityBoost;',
       'varying float vKind,vLight,vRim,vAmp,vDensity,vFlash;',
       'void main(){',
       '  vec3 pos = position;',
@@ -462,7 +467,7 @@ function createSkullParticleLayer() {
       '  pos.y -= jawDrop * (0.038 + openDrive * 0.100);',
       '  pos.z += jawDrop * (0.003 + openDrive * 0.014);',
       '  float ampDrive = smoothstep(0.20, 0.82, uBass * 0.44 + uMid * 0.22 + uBeat * 0.72);',
-      '  float ampPhase = 0.50 + 0.50 * sin(uTime * (1.05 + uMid * 0.30) + seed * 6.2831);',
+      '  float ampPhase = 0.50 + 0.50 * sin(uTime * uSpeed * (1.05 + uMid * 0.30) + seed * 6.2831);',
       '  vFlash = clamp(uSkullFlash * (0.68 + ampPhase * 0.32), 0.0, 1.0);',
       '  vAmp = clamp(ampDrive * 0.045 + vFlash * 0.92 + uTreble * 0.012, 0.0, 1.0);',
       '  vec4 mv = modelViewMatrix * vec4(pos, 1.0);',
@@ -482,16 +487,17 @@ function createSkullParticleLayer() {
       '  vDensity = clamp(0.30 + key * 0.70 + vRim * 0.24 - gothicShadow * 0.24 + dust * 0.025 + vFlash * 0.08, 0.16, 1.20);',
       '  vLight = clamp(0.115 + key * 1.02 + low + fill + dentalLift * 0.20 + boneKind * 0.070 + vAmp * 0.56 - gothicShadow * 0.08, 0.035, 1.72);',
       '  float scaleCtl = clamp(uPointScale, 0.48, 2.35);',
-      '  float size = (0.035 + boneKind * 0.026) * (0.84 + vDensity * 0.22 + vLight * 0.13 + uBloomStrength * 0.030 + vFlash * 0.18);',
+      '  float size = (0.035 + boneKind * 0.026) * (0.84 + vDensity * 0.22 + vLight * 0.13 + uBloomStrength * 0.030 + vFlash * 0.18) * uDensityBoost;',
       '  gl_PointSize = clamp(size * uPixel * scaleCtl * 128.0 / dist, 0.95, 7.60);',
       '  gl_Position = projectionMatrix * mv;',
+      '  if (fract(seed * 0.1731) > uParticleCount) { gl_PointSize = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }',
       '}'
     ].join('\n'),
     fragmentShader: [
       'precision highp float;',
       'uniform sampler2D uMap;',
       'uniform vec3 uColorA,uColorB,uShadow,uLight;',
-      'uniform float uOpacity,uBloomStrength,uColorBoost;',
+      'uniform float uOpacity,uBloomStrength,uColorBoost,uBright;',
       'varying float vKind,vLight,vRim,vAmp,vDensity,vFlash;',
       'void main(){',
       '  vec4 tex = texture2D(uMap, gl_PointCoord);',
@@ -502,6 +508,9 @@ function createSkullParticleLayer() {
       '  vec3 col = mix(uShadow, bone, clamp(lit, 0.0, 1.0));',
       '  col = mix(col, uLight, clamp(vRim * (0.14 + uBloomStrength * 0.035 + vFlash * 0.40), 0.0, 0.54));',
       '  col = mix(col, uLight, clamp(vAmp * (0.09 + uBloomStrength * 0.025) + vFlash * 0.56, 0.0, 0.68));',
+      '  col *= clamp(uBright, 0.4, 20.0);',
+      '  float mBright = max(col.r, max(col.g, col.b));',
+      '  if (mBright > 1.0) col /= mBright;', // 色相保持亮度 (fx.brightness)
       '  float alpha = tex.a * uOpacity * clamp(0.20 + lit * 0.44 + vDensity * 0.40 + vRim * 0.10 + vFlash * 0.46, 0.12, 1.56);',
       '  gl_FragColor = vec4(col, alpha);',
       '}'
@@ -525,7 +534,7 @@ function createSkullParticleLayer() {
   return skullParticleGroup;
 }
 function isSkullShelfCompositionActive() {
-  if (!(fx && fx.preset === SKULL_PRESET_INDEX)) return false;
+  if (!fxLayerActiveFor(SKULL_PRESET_INDEX)) return false;
   if (!shelfManager || !shelfManager.getMode || shelfManager.getMode() !== 'side') return false;
   if (shelfPinnedOpen || shelfVisibility > 0.18) return true;
   return !!(shelfManager.hasOpenContent && shelfManager.hasOpenContent());
@@ -546,7 +555,7 @@ function clearSkullPresetResidue() {
 }
 function resetSkullPresetView(immediate, opts) {
   opts = opts || {};
-  if (!(fx && fx.preset === SKULL_PRESET_INDEX)) return;
+  if (!fxLayerActiveFor(SKULL_PRESET_INDEX)) return;
   skullWheelZoomTarget = 0;
   if (!opts.smooth) skullWheelZoom = 0;
   skullCameraBlend = Math.max(skullCameraBlend, 1);
@@ -611,7 +620,7 @@ function applySkullCameraCinemaMotion(portrait, shelfComposition) {
 }
 function applySkullCameraPose(dt) {
   if (freeCamera && (freeCamera.active || freeCamera.locked || freeCamera.resetTween)) return;
-  var active = fx && fx.preset === SKULL_PRESET_INDEX;
+  var active = fxLayerActiveFor(SKULL_PRESET_INDEX);
   skullCameraBlend += ((active ? 1 : 0) - skullCameraBlend) * Math.min(1, dt * (active ? 4.8 : 7.2));
   if (skullCameraBlend < 0.002) return;
   skullWheelZoom += (skullWheelZoomTarget - skullWheelZoom) * Math.min(1, dt * 8.0);
@@ -631,7 +640,8 @@ function applySkullCameraPose(dt) {
   camera.updateProjectionMatrix();
 }
 function updateSkullParticleLayer(dt) {
-  var active = fx && fx.preset === SKULL_PRESET_INDEX;
+  var fx = fxLayerFx(SKULL_PRESET_INDEX) || fx;   // 分预设: 骷髅层用自己的参数快照
+  var active = fxLayerActiveFor(SKULL_PRESET_INDEX);
   if (active && !skullParticleAsset.data && !skullParticleAsset.failed) {
     loadSkullParticleAsset();
     return;
@@ -647,6 +657,9 @@ function updateSkullParticleLayer(dt) {
   }
   skullParticleGroup.visible = true;
   skullParticleGroup.material.uniforms.uOpacity.value = skullParticleOpacity * clampRange(0.78 + (fx.intensity || 0.85) * 0.18, 0.56, 1.0);
+  skullParticleGroup.material.uniforms.uParticleCount.value = clampRange(fx.particleCount == null ? 1 : fx.particleCount, 0.05, 1);
+  skullParticleGroup.material.uniforms.uSpeed.value = clampRange(fx.speed || 1, 0.2, 2.5);
+  skullParticleGroup.material.uniforms.uDensityBoost.value = clampRange(Math.pow(clampRange(fx.particleDensity || 1, 1, 4), 0.5), 1.0, 2.0);
   var beatTransient = clampRange(Math.max(0, beatPulse - 0.16) / 0.84, 0, 1.35);
   var flashTarget = clampRange(Math.pow(beatTransient, 1.34) * 1.08 + Math.max(0, bass - 0.60) * 0.18 * beatTransient, 0, 1);
   skullBeatFlash += (flashTarget - skullBeatFlash) * Math.min(1, dt * (flashTarget > skullBeatFlash ? 24.0 : 6.2));
