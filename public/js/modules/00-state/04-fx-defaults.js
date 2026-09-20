@@ -7,7 +7,7 @@ function normalizeWallpaperFps(value) {
 }
 
 var fxDefaults = {
-  preset: 9,            // 0=emily cover, 1=tunnel, 2=orbit, 3=void, 4=vinyl, 5=wallpaper, 6=skull, 7=sonic topography, 8=sonic workshop, 9=phoenix
+  preset: 5,            // 0=emily cover, 1=tunnel, 2=orbit, 3=void, 4=vinyl, 5=wallpaper, 6=skull, 7=sonic topography, 8=sonic workshop, 9=phoenix
   presetOverlay: -1,    // 预设叠加层: -1=无, 否则叠加显示该预设的独立视觉层 (5/6/7/9)
   phoenixFlightPath: "none", // 凤凰横向轨迹: none=原地 circle=盘旋椭圆 patrol=左右巡游 (旧 phoenixFlightMode 自动迁移)
   phoenixFlightDive: true,  // 俯冲叠加开关 (可与盘旋/巡游同时开)
@@ -21,21 +21,21 @@ var fxDefaults = {
   phoenixPosY: 1.07,            // 凤凰整体位置上下偏移 (向上为正)
   lyricAvoidPhoenix: false,   // 凤凰层激活且有歌词时, 歌词自动下移避让
   intensity: 0.6,
-  particleCount: 1,   // 粒子数量保留比例 0.1~1.0, 着色器按 aRand 随机裁剪
-  particleDensity: 3.35, // 粒子密度倍增 1.0~4.0, 几何层倍增粒子总数(网格上限 640)
+  particleCount: 0.86,   // 粒子数量保留比例 0.1~1.0, 着色器按 aRand 随机裁剪
+  particleDensity: 1, // 粒子密度倍增 1.0~4.0, 几何层倍增粒子总数(网格上限 640)
   cinemaShake: 0,
   depth: 0.2,
   coverResolution: 1.55,
-  point: 1.67, speed: 0.6, twist: 0.0, color: 1.10, scatter: 0.0, bgFade: 0,
-  brightness: 4,
+  point: 1.09, speed: 0.6, twist: 0.0, color: 1.10, scatter: 0.0, bgFade: 0,
+  brightness: 3.65,
   phoenixColorMode: "cover", phoenixSolidColor: '#ffffff',
   phoenixRhythmMode: "sweep",
   bloomStrength: 0,
   lyricGlowStrength: 0,
   lyricBackgroundAdapt: 0.72,
   lyricScale: 0.7,
-  lyricOffsetX: 2.73,
-  lyricOffsetY: 0.75,
+  lyricOffsetX: 0,
+  lyricOffsetY: 0.03,
   lyricOffsetZ: 0,
   lyricTiltX: 0,
   lyricTiltY: 0,
@@ -116,7 +116,7 @@ var fxDefaults = {
   backgroundStarRiver: false,
   perPresetSplit: true, // 分预设视觉参数开关 (false=统一调节)
   zoomFixed: false,      // 固定缩放: 开启后每次启动/切预设/回正都用 zoomRadius 作为相机距离
-  zoomRadius: 15,      // 视图缩放 (相机轨道半径, 即鼠标滚轮调整的距离; 默认=全景)
+  zoomRadius: 13.9,      // 视图缩放 (相机轨道半径, 即鼠标滚轮调整的距离; 默认=全景)
   lyricPauseHold: true,
   lyricCameraLock: false,
   sonicGroundAmplitude: 61,
