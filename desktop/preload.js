@@ -1,10 +1,20 @@
 const { contextBridge, ipcRenderer, clipboard, webUtils } = require('electron');
 
+// 尽早捕获页面脚本错误（preload 先于页面所有 JS 执行），供启动诊断转储
+window.__auroradioEarlyErrors = [];
+window.addEventListener('error', function (e) {
+  try { window.__auroradioEarlyErrors.push(String((e && e.message) || e).slice(0, 300)); } catch (_) { }
+});
+window.addEventListener('unhandledrejection', function (e) {
+  try { window.__auroradioEarlyErrors.push('unhandledrejection: ' + String((e && e.reason) || e).slice(0, 300)); } catch (_) { }
+});
+
 contextBridge.exposeInMainWorld('desktopWindow', {
   isDesktop: true,
   // 入口页初始化完成（入场动画即将开始）时通知主进程显示窗口：主线程繁忙时
   // rAF 探针可能迟迟无法执行，IPC 走任务队列更可靠。
   notifyEntryVisualReady: () => ipcRenderer.send('mineradio-entry-visual-ready'),
+  sendRendererDiagnostics: (payload) => ipcRenderer.send('mineradio-renderer-diagnostics', payload || {}),
   minimize: () => ipcRenderer.invoke('desktop-window-minimize'),
   restore: () => ipcRenderer.invoke('desktop-window-restore'),
   toggleMaximize: () => ipcRenderer.invoke('desktop-window-toggle-maximize'),

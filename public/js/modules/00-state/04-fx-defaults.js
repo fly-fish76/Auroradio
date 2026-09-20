@@ -116,7 +116,7 @@ var fxDefaults = {
   backgroundStarRiver: false,
   perPresetSplit: true, // 分预设视觉参数开关 (false=统一调节)
   zoomFixed: false,      // 固定缩放: 开启后每次启动/切预设/回正都用 zoomRadius 作为相机距离
-  zoomRadius: 5.2,      // 视图缩放 (相机轨道半径, 即鼠标滚轮调整的距离; 默认=全景)
+  zoomRadius: 15,      // 视图缩放 (相机轨道半径, 即鼠标滚轮调整的距离; 默认=全景)
   lyricPauseHold: true,
   lyricCameraLock: false,
   sonicGroundAmplitude: 61,

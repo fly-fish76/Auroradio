@@ -135,4 +135,34 @@
       window.desktopWindow.notifyEntryVisualReady();
     }
   } catch (_) {}
+
+  // 启动诊断转储：把渲染端实际解析出的参数/报错/存储清单发给主进程落盘，
+  // 用于排查"装机后参数与预期不一致"一类问题。
+  try {
+    setTimeout(function () {
+      var payload = {
+        errors: (window.__auroradioEarlyErrors || []).slice(0, 20),
+        fx: {},
+        localStorageKeys: [],
+        userAgent: navigator.userAgent,
+      };
+      try {
+        if (typeof fxDefaults !== 'undefined') payload.fxDefaultsSample = {
+          preset: fxDefaults.preset,
+          phoenixFlightSpeed: fxDefaults.phoenixFlightSpeed,
+          particleDensity: fxDefaults.particleDensity,
+          brightness: fxDefaults.brightness,
+          lyricScale: fxDefaults.lyricScale,
+          zoomRadius: fxDefaults.zoomRadius,
+        };
+        if (typeof fx !== 'undefined') {
+          payload.fx = JSON.parse(JSON.stringify(fx));
+        }
+      } catch (e) { payload.fxError = String(e).slice(0, 200); }
+      try { payload.localStorageKeys = Object.keys(localStorage); } catch (e) {}
+      if (window.desktopWindow && typeof window.desktopWindow.sendRendererDiagnostics === 'function') {
+        window.desktopWindow.sendRendererDiagnostics(payload);
+      }
+    }, 3000);
+  } catch (_) {}
 })();

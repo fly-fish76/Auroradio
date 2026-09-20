@@ -5671,6 +5671,22 @@ async function createWindowOnce() {
   return win;
 }
 
+// 渲染端诊断转储：收集页面实际解析出的参数/报错/存储清单，写入 userData，
+// 用于远端排障（用户把该文件发回来即可看到那台机器的真实状态）。
+ipcMain.on('mineradio-renderer-diagnostics', (_event, payload) => {
+  try {
+    const file = path.join(STABLE_USER_DATA_PATH, 'renderer-diagnostics.json');
+    const body = JSON.stringify({
+      collectedAt: new Date().toISOString(),
+      appVersion: app.getVersion(),
+      ...payload,
+    }, null, 2);
+    fs.writeFileSync(file, body, 'utf8');
+  } catch (error) {
+    console.warn('[RendererDiagnostics] write failed:', error && error.message || error);
+  }
+});
+
 // 入口页初始化完成信号（index-loader 在模块主循环就绪后发出）：此刻显示窗口，
 // 入场动画随 rAF 恢复立即开始——用户看到"点击 → 安静 1~2 秒 → 动画直接出现"。
 // 基底恢复为透明仍由 dom-ready 的 rAF 探针负责（动画跑起来之后）。
