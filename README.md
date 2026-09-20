@@ -16,15 +16,9 @@ Auroradio 是一款 Windows 桌面沉浸式音乐播放器，把搜索播放、�
 
 ## 演示
 
-<p align="center">
-  <a href="./.github/assets/auroradio-demo.mp4">
-    <img src="./.github/assets/auroradio-splash.png" width="640" alt="Auroradio 启动画面 — 点击观看演示视频"/>
-  </a>
-</p>
+https://github.com/user-attachments/assets/3be693a7-76d2-4f55-8fcd-b90aeda33366
 
-<p align="center">▲ 点击启动画面观看完整演示视频 · <a href="./.github/assets/auroradio-demo.mp4">直接打开视频</a></p>
-
-> 演示视频展示的是新视觉预设的实机效果（音乐广场浏览 + 凤凰预设随乐律动）。
+▲ 新视觉预设实机演示：音乐广场浏览 + 凤凰预设随乐律动
 
 ## 亮点与创新
 
