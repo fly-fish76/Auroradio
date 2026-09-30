@@ -105,15 +105,7 @@ Auroradio 不是网易云音乐、QQ 音乐或腾讯音乐娱乐集团的官方�
 
 更多说明见 [PRIVACY.md](./PRIVACY.md)。
 
-## 赞助
 
-如果 Auroradio 陪你多听了一首歌，欢迎请作者喝杯咖啡——完全自愿，不影响任何功能。
-
-<p align="center">
-  <img src="./.github/assets/donate-wechat.png" width="240" alt="微信支付"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="./.github/assets/donate-alipay.png" width="240" alt="支付宝"/>
-</p>
 
 ## 致谢
 
